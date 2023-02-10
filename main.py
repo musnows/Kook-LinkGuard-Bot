@@ -5,6 +5,7 @@ import os
 from utils import *
 
 from khl import Bot, Message,PrivateMessage
+from khl.card import Card,CardMessage,Types,Module,Element
 
 # 用读取来的 config 初始化 bot
 config = open_file('./config/config.json')
@@ -64,11 +65,18 @@ def write_log(gid:str,usrid:str,ret:str):
 
 # 发送通知
 async def send_log(gid:str,usrid:str,usrname:str,code:str,ret:str):
-    text =f"[{GetTime()}] LinkGuard = code: `{code}`\n"
-    text+=f"用户id: {usrid} = 昵称: {usrname}\n"
+    text= f"用户id: {usrid}\n昵称: {usrname}\n"
+    text+=f"该用户发送的邀请码: {code}\n"
     text+=f"```\n{ret}\n```"
+    cm = CardMessage()
+    c = Card(
+        Module.Header(f"[{GetTime()}] LinkGuard"),
+        Module.Divider(),
+        Module.Section(Element.Text(text,Types.Text.KMD))
+    )
+    cm.append(c)
     ch = await bot.client.fetch_public_channel(LinkLog['set'][gid])
-    await bot.client.send(ch,text)
+    await bot.client.send(ch,cm)
 
 # 监看url是否为当前频道
 async def invite_ck(msg:Message,code: str):
