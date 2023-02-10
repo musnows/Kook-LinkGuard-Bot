@@ -1,5 +1,6 @@
 import time
 import json
+import sys
 
 #将获取当前时间封装成函数方便使用
 def GetTime():
@@ -13,3 +14,14 @@ def open_file(path:str):
     with open(path, 'r', encoding='utf-8') as f:
         tmp = json.load(f)
     return tmp
+
+
+# 设置日志文件的重定向
+def logDup(path:str='./log.txt'):
+    file =  open(path, 'a')
+    sys.stdout = file 
+    sys.stderr = file
+# 刷新缓冲区
+def logFlush():
+    sys.stdout.flush() # 刷新缓冲区
+    sys.stderr.flush() # 刷新缓冲区

@@ -17,6 +17,18 @@ headers = {f'Authorization': f"Bot {config['token']}"}
 LinkLogPath = './config/linklog.json'
 LinkLog = open_file(LinkLogPath)
 
+
+# 以下代码仅供replit部署使用
+
+# 标准输出重定向至文件
+# logDup('./log/log.txt')
+# from keepal import keep_alive
+# keep_alive() # 运行Flask
+
+# 以上代码仅供replit部署使用
+
+#####################################################################################
+
 # 命令日志
 def logging(msg:Message):
     chid = "PrivateMessage"
@@ -26,6 +38,7 @@ def logging(msg:Message):
     print(
         f"[{GetTime()}] G:{msg.ctx.guild.id} - C:{chid} - Au:{msg.author_id} {msg.author.username}#{msg.author.identify_num} = {msg.content}"
     )
+    logFlush() # 刷缓冲区
 
 # 查看bot状态
 @bot.command(name='alive',case_sensitive=False)
@@ -62,6 +75,7 @@ def write_log(gid:str,usrid:str,ret:str):
     # 写入文件
     write_file(LinkLogPath,LinkLog) 
     print(f"[{GetTime()}] G:{gid} = Au:{usrid} = write_log")
+    logFlush() # 刷缓冲区
 
 # 发送通知
 async def send_log(gid:str,usrid:str,usrname:str,code:str,ret:str):
@@ -131,9 +145,11 @@ async def startup_task():
         global debug_ch
         debug_ch = await bot.client.fetch_public_channel(config['debug_ch'])
         print(f"[BOT.START] fetch debug channel success")
+        logFlush() # 刷缓冲区
     except:
         err_cur=str(traceback.format_exc())
         print(f"[BOT.START] ERR!\n{err_cur}")
+        logFlush() # 刷缓冲区
         os._exit(-1)
 
 
