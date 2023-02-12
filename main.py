@@ -152,6 +152,13 @@ async def startup_task():
         logFlush() # 刷缓冲区
         os._exit(-1)
 
+# botmarket通信
+@bot.task.add_interval(minutes=30)
+async def botmarket():
+    api = "http://bot.gekj.net/api/v1/online.bot"
+    headers = {'uuid': '1d266c78-30b2-4299-b470-df0441862711'}
+    async with aiohttp.ClientSession() as session:
+        await session.post(api, headers=headers)
 
 print(f"[BOT.START] start at {GetTime()}")
 # 开始运行
