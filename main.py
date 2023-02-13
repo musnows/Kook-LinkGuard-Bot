@@ -52,14 +52,43 @@ async def set_channel(msg:Message,*arg):
     try:
         logging(msg)
         global LinkLog
+        # 不在内，则创建键值
+        if msg.ctx.guild.id not in LinkLog['set']:
+            LinkLog['set'][msg.ctx.guild.id] = {'log_ch':'','ign_ch':[]}
         # 设置当前频道为通知频道
-        LinkLog['set'][msg.ctx.guild.id] = msg.ctx.channel.id
+        LinkLog['set'][msg.ctx.guild.id]['log_ch'] = msg.ctx.channel.id
         await msg.reply(f"已将当前频道设置为LinkGuard Bot的日志频道")
+        # 写入文件
+        write_file(LinkLogPath,LinkLog) 
+        print(f"[{GetTime()}] setch G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] setch - {result}"
         print(err_str)
         await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
 
+# 忽略某个频道
+@bot.command(name='ignch',case_sensitive=False)
+async def ignore_channel(msg:Message,*arg):
+    try:
+        logging(msg)
+        global LinkLog
+        gid = msg.ctx.guild.id
+        chid = msg.ctx.channel.id
+        if gid not in LinkLog['set']:
+            await msg.reply(f"请先使用「/setch」命令设置日志频道，详见「/lgh」帮助命令")
+            return
+        # 如果文字频道id不在ign里面，则追加
+        if chid not in LinkLog['set'][gid]['ign_ch']:
+            LinkLog['set'][gid]['ign_ch'].append(chid)
+        # 写入文件
+        write_file(LinkLogPath,LinkLog) 
+        print(f"[{GetTime()}] ignch G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
+    except Exception as result:
+        err_str=f"ERR! [{GetTime()}] ignch - {result}"
+        print(err_str)
+        await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
+
+#####################################################################################
 
 # 写入日志
 def write_log(gid:str,usrid:str,ret:str):
@@ -129,11 +158,9 @@ async def link_guard(msg: Message):
                 await msg.delete() # 删除邀请链接消息
 
     except Exception as result:
-        err_str=f"ERR! [{GetTime()}] /ldck - {result}"
+        err_str=f"ERR! [{GetTime()}] link_guard - {result}"
         print(err_str)
         await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
-
-
 
 
 #############################################################################
