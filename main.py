@@ -4,7 +4,7 @@ import traceback
 import os
 from utils import *
 
-from khl import Bot, Message,PrivateMessage
+from khl import Bot, Message,PrivateMessage,requester
 from khl.card import Card,CardMessage,Types,Module,Element
 
 # 用读取来的 config 初始化 bot
@@ -106,6 +106,14 @@ def write_log(gid:str,usrid:str,ret:str):
     print(f"[{GetTime()}] G:{gid} = Au:{usrid} = write_log")
     logFlush() # 刷缓冲区
 
+# 判断邀请链接的api
+async def check_invites(code:str):
+    url = kook+'/api/v2/invites/' + code
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            ret = json.loads(await response.text())
+            return ret
+
 # 发送通知
 async def send_log(gid:str,usrid:str,usrname:str,code:str,ret:str):
     text= f"用户id: {usrid}\n昵称: {usrname}\n"
@@ -118,33 +126,38 @@ async def send_log(gid:str,usrid:str,usrname:str,code:str,ret:str):
         Module.Section(Element.Text(text,Types.Text.KMD))
     )
     cm.append(c)
-    ch = await bot.client.fetch_public_channel(LinkLog['set'][gid])
+    ch = await bot.client.fetch_public_channel(LinkLog['set'][gid]['log_ch'])
     await bot.client.send(ch,cm)
 
 # 监看url是否为当前频道
 async def invite_ck(msg:Message,code: str):
-    gid = msg.ctx.guild.id
-    usrid = msg.author_id
+    """Return Value:
+    - True: not same guild_id
+    - False: is same guild_id
+    """
+    gid = msg.ctx.guild.id    # 服务器id
+    chid = msg.ctx.channel.id # 文字频道id
+    usrid = msg.author_id     # 发送链接的用户id
     usrname = f"{msg.author.username}#{msg.author.identify_num}"
-    print(f"[{GetTime()}] G:{gid} = {code}")
-    url = kook+'/api/v2/invites/' + code
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            ret = json.loads(await response.text())
-            # 判断是否为当前服务器
-            if ret['guild']['id'] != gid:
-                write_log(gid,usrid,ret['guild'])  # 写入日志
-                await send_log(gid,usrid,usrname,code,ret['guild'])  # 发送通知
-                print(f"[{GetTime()}] G:{gid} = {code} = {ret['guild']}")
-                return True # 不是返回true
-    return False # 是返回false
+    # 之前配置过ign，忽略此频道
+    if chid in LinkLog['set'][gid]['ign_ch']:
+        return False
+    # 判断是否为当前服务器
+    ret = await check_invites(code)
+    if ret['guild']['id'] != gid:
+        write_log(gid,usrid,ret['guild'])  # 写入日志
+        await send_log(gid,usrid,usrname,code,ret['guild'])  # 发送通知
+        print(f"[{GetTime()}] G:{gid} C:{chid} Au:{usrid}\n[ret] {code} : {ret['guild']}")
+        return True # 不是本服务器的邀请链接，返回true
+    # 是本服务器返回false
+    return False 
 
 
 # 监看本频道的邀请链接
 @bot.on_message()
 async def link_guard(msg: Message):
     try:
-        if msg.ctx.guild.id not in LinkLog['set']:
+        if msg.ctx.guild.id not in LinkLog['set'][msg.ctx.guild.id]['log_ch']:
             return # 必须要配置日志频道，才会启用
         # 消息内容
         text = msg.content 
@@ -153,10 +166,17 @@ async def link_guard(msg: Message):
         if link_index != -1: # 有
             code = text[link_index + 17:link_index + 23] # 取出邀请链接的code
             ret = await invite_ck(msg,code) # 检查是否为当前服务器
-            if ret: # 不是
+            if ret: # 不是本服务器的邀请链接
                 await msg.reply(f"(met){msg.author_id}(met) 请不要发送其他服务器的邀请链接！")
                 await msg.delete() # 删除邀请链接消息
-
+    except requester.HTTPRequester.APIRequestFailed as result:
+        err_str=f"ERR! [{GetTime()}] link_guard - {result}"
+        print(err_str)
+        if "无删除权限" in result:
+            ch = await bot.client.fetch_public_channel(LinkLog['set'][msg.ctx.guild.id]['log_ch'])
+            await bot.client.send(ch,f"请开启本服务器的删除文字权限")
+        elif "message/create" in result and "没有权限" in result:
+            pass
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] link_guard - {result}"
         print(err_str)
