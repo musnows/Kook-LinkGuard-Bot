@@ -46,6 +46,23 @@ async def alive_check(msg:Message,*arg):
     logging(msg)
     await msg.reply(f"bot alive here")# 回复
 
+# 帮助命令
+@bot.command(name='lgh',case_sensitive=False)
+async def help(msg:Message,*arg):
+    logging(msg)
+    text = "「/alive」看看bot是否在线\n"
+    text+= "「/setch」将本频道设置为日志频道 (执行后才会开始监看)\n"
+    text+= "「/ignch」在监看中忽略本频道\n"
+    text+= "「/clear」清除本服务器的设置"
+    cm = CardMessage()
+    c = Card(
+        Module.Header(f"LinkGuard 的帮助命令"),
+        Module.Divider(),
+        Module.Section(text)
+    )
+    cm.append(c)
+    await msg.reply(cm)
+
 # 设置日志频道
 @bot.command(name='setch',case_sensitive=False)
 async def set_channel(msg:Message,*arg):
@@ -64,6 +81,7 @@ async def set_channel(msg:Message,*arg):
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] setch - {result}"
         print(err_str)
+        await msg.reply(err_str)
         await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
 
 # 忽略某个频道
@@ -86,6 +104,27 @@ async def ignore_channel(msg:Message,*arg):
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] ignch - {result}"
         print(err_str)
+        await msg.reply(err_str)
+        await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
+
+@bot.command(name='clear',case_sensitive=False)
+async def clear_setting(msg:Message,*arg):
+    try:
+        logging(msg)
+        global LinkLog
+        gid = msg.ctx.guild.id
+        if gid not in LinkLog['set']:
+            await msg.reply(f"请先使用「/setch」命令设置日志频道，详见「/lgh」帮助命令")
+            return
+        # 删除键值
+        del LinkLog['set'][gid]
+        # 写入文件
+        write_file(LinkLogPath,LinkLog) 
+        print(f"[{GetTime()}] clear G:{msg.ctx.guild.id}")
+    except Exception as result:
+        err_str=f"ERR! [{GetTime()}] clear - {result}"
+        print(err_str)
+        await msg.reply(err_str)
         await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
 
 #####################################################################################
