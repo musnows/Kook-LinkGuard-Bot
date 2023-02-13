@@ -99,6 +99,7 @@ async def ignore_channel(msg:Message,*arg):
         if chid not in LinkLog['set'][gid]['ign_ch']:
             LinkLog['set'][gid]['ign_ch'].append(chid)
         # 写入文件
+        await msg.reply(f"已将本频道忽略")
         write_file(LinkLogPath,LinkLog) 
         print(f"[{GetTime()}] ignch G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
@@ -118,6 +119,7 @@ async def clear_setting(msg:Message,*arg):
             return
         # 删除键值
         del LinkLog['set'][gid]
+        await msg.reply(f"已清楚本服务器的设置")
         # 写入文件
         write_file(LinkLogPath,LinkLog) 
         print(f"[{GetTime()}] clear G:{msg.ctx.guild.id}")
