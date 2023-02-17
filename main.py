@@ -198,7 +198,7 @@ async def invite_ck(msg:Message,code: str):
 @bot.on_message()
 async def link_guard(msg: Message):
     try:
-        if msg.ctx.guild.id not in LinkLog['set'][msg.ctx.guild.id]['log_ch']:
+        if msg.ctx.guild.id not in LinkLog['set']:
             return # 必须要配置日志频道，才会启用
         # 消息内容
         text = msg.content 
@@ -211,12 +211,12 @@ async def link_guard(msg: Message):
                 await msg.reply(f"(met){msg.author_id}(met) 请不要发送其他服务器的邀请链接！")
                 await msg.delete() # 删除邀请链接消息
     except requester.HTTPRequester.APIRequestFailed as result:
-        err_str=f"ERR! [{GetTime()}] link_guard - {result}"
+        err_str=f"ERR! [{GetTime()}] link_guard APIRequestFailed - {result}"
         print(err_str)
-        if "无删除权限" in result:
+        if "无删除权限" in str(result):
             ch = await bot.client.fetch_public_channel(LinkLog['set'][msg.ctx.guild.id]['log_ch'])
             await bot.client.send(ch,f"请开启本服务器的删除文字权限")
-        elif "message/create" in result and "没有权限" in result:
+        elif "message/create" in str(result) and "没有权限" in str(result):
             pass
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] link_guard - {result}"
