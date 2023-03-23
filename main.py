@@ -198,6 +198,9 @@ async def invite_ck(msg:Message,code: str):
 @bot.on_message()
 async def link_guard(msg: Message):
     try:
+        # 是私聊，直接退出
+        if isinstance(msg, PrivateMessage):
+            return
         if msg.ctx.guild.id not in LinkLog['set']:
             return # 必须要配置日志频道，才会启用
         # 消息内容
