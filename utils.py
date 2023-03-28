@@ -2,9 +2,16 @@ import time
 import json
 import sys
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 #将获取当前时间封装成函数方便使用
 def GetTime():
-    return time.strftime("%y-%m-%d %H:%M:%S", time.localtime())
+    """获取当前时间，格式为 `23-01-01 00:00:00`"""
+    a = datetime.now(ZoneInfo('Asia/Shanghai')) # 返回北京时间
+    return a.strftime('%y-%m-%d %H:%M:%S')
+    # return time.strftime("%y-%m-%d %H:%M:%S", time.localtime())
+
 # 写入文件
 def write_file(path: str, value):
     with open(path, 'w', encoding='utf-8') as fw2:
