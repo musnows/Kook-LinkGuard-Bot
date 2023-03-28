@@ -17,16 +17,6 @@ headers = {f'Authorization': f"Bot {config['token']}"}
 LinkLogPath = './config/linklog.json'
 LinkLog = open_file(LinkLogPath)
 
-
-# 以下代码仅供replit部署使用
-
-# 标准输出重定向至文件
-# logDup('./log/log.txt')
-# from keepal import keep_alive
-# keep_alive() # 运行Flask
-
-# 以上代码仅供replit部署使用
-
 #####################################################################################
 
 # 命令日志
@@ -251,6 +241,9 @@ async def botmarket():
     async with aiohttp.ClientSession() as session:
         await session.post(api, headers=headers)
 
-print(f"[BOT.START] start at {GetTime()}")
-# 开始运行
-bot.run()
+
+# 开机 （如果是主文件就开机）
+if __name__ == '__main__':
+    # 开机的时候打印一次时间，记录开启时间
+    print(f"[BOT] Start at {GetTime()}")
+    bot.run()
