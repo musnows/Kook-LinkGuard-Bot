@@ -6,6 +6,7 @@ from utils import *
 
 from khl import Bot, Message,PrivateMessage,requester
 from khl.card import Card,CardMessage,Types,Module,Element
+from aiohttp import client_exceptions
 
 # 用读取来的 config 初始化 bot
 config = open_file('./config/config.json')
@@ -211,6 +212,12 @@ async def link_guard(msg: Message):
             await bot.client.send(ch,f"请开启本服务器的删除文字权限")
         elif "message/create" in str(result) and "没有权限" in str(result):
             pass
+    except client_exceptions.ClientConnectorError as result:
+        err_str=f"ERR! [{GetTime()}] link_guard\naiohttp.client_exceptions.ClientConnectorError\n{result}"
+        if 'kookapp.cn' in str(result):
+            print(f"ERR! [{GetTime()}] {str(result)}")
+            return
+        print(err_str)
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] link_guard - {result}"
         print(err_str)
