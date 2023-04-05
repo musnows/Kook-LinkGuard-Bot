@@ -4,13 +4,14 @@ import traceback
 import os
 from utils import *
 
-from khl import Bot, Message,PrivateMessage,requester
+from khl import Bot,Cert, Message,PrivateMessage,requester
 from khl.card import Card,CardMessage,Types,Module,Element
 from aiohttp import client_exceptions
 
 # 用读取来的 config 初始化 bot
 config = open_file('./config/config.json')
-bot = Bot(token=config['token'])
+# bot = Bot(token=config['token'])
+bot = Bot(cert=Cert(token=config['token'], verify_token=config['verify_token'],encrypt_key=config['encrypt']))
 # 配置kook头链接
 kook = "https://www.kookapp.cn"
 headers = {f'Authorization': f"Bot {config['token']}"}
@@ -44,12 +45,14 @@ async def help(msg:Message,*arg):
     text = "「/alive」看看bot是否在线\n"
     text+= "「/setch」将本频道设置为日志频道 (执行后才会开始监看)\n"
     text+= "「/ignch」在监看中忽略本频道\n"
-    text+= "「/clear」清除本服务器的设置"
+    text+= "「/clear」清除本服务器的设置\n"
+    text+= " 出现其他频道链接时，机器人会提醒用户、删除该消息，并发送链接相关信息到日志频道"
     cm = CardMessage()
     c = Card(
         Module.Header(f"LinkGuard 的帮助命令"),
         Module.Divider(),
-        Module.Section(text)
+        Module.Section(text),
+        Module.Container(Element.Image(src="https://img.kookapp.cn/assets/2023-04/AV0prInBSO0ju0aq.png"))
     )
     cm.append(c)
     await msg.reply(cm)

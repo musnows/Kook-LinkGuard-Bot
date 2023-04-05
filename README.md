@@ -24,8 +24,10 @@ pip install khl.py
 
 ```json
 {
-    "token":"bot websocket token",
-    "debug_ch":"错误日志文字频道"
+    "token":"bot webhook token",
+    "verify_token":"bot webhook verify token",
+    "encrypt":"bot webhook encrypt token",
+    "debug_ch":"用于发送debug信息的日志频道"
 }
 ```
 

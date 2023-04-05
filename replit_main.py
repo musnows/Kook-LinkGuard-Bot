@@ -28,12 +28,14 @@ def keep_alive():
 
 
 # 标准输出重定向至文件
-from main import logDup, bot
+from main import logDup, bot, GetTime
 
-logDup('./log/log.txt')
-# 开机 （如果是主文件就开机）
+# 开机
 if __name__ == '__main__':
     # 开机的时候打印一次时间，记录开启时间
-    print(f"[BOT] Start in replit")
-    keep_alive()  # 运行Flask
+    print(f"[BOT] Start in replit {GetTime()}")
+    logDup('./log/log.txt')
+    print(f"[BOT] Start in replit {GetTime()}")
+    # 采用wh启动机器人，不需要用flask也能保证机器人活跃
+    # keep_alive()  # 运行Flask
     bot.run()  # 运行机器人
