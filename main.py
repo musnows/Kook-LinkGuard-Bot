@@ -2,66 +2,85 @@ import json
 import aiohttp
 import traceback
 import os
-from utils import *
 
 from khl import Bot,Cert, Message,PrivateMessage,requester
 from khl.card import Card,CardMessage,Types,Module,Element
 from aiohttp import client_exceptions
 
+from utils import open_file,write_file,GetTime,logFlush,_log
+
 # 用读取来的 config 初始化 bot
 config = open_file('./config/config.json')
-# bot = Bot(token=config['token'])
-bot = Bot(cert=Cert(token=config['token'], verify_token=config['verify_token'],encrypt_key=config['encrypt']))
+"""机器人配置文件"""
+bot = Bot(token=config['token']) # websocket
+if not config["ws"]: # webhook
+    _log.info(f"[BOT] using webhook at {config['webhook_port']}")
+    bot = Bot(cert=Cert(token=config['token'], verify_token=config['verify_token'],encrypt_key=config['encrypt']),
+              port=config["webhook_port"])
 # 配置kook头链接
 kook = "https://www.kookapp.cn"
 headers = {f'Authorization': f"Bot {config['token']}"}
 # 打开日志文件
 LinkLogPath = './config/linklog.json'
+"""日志文件路径"""
 LinkLog = open_file(LinkLogPath)
+"""日志文件 {"data":{}}"""
 
 #####################################################################################
 
 # 命令日志
-def logging(msg:Message):
-    chid = "PrivateMessage"
-    if not isinstance(msg, PrivateMessage): # 不是私聊
-        chid = msg.ctx.channel.id
-    # 打印日志
-    print(
-        f"[{GetTime()}] G:{msg.ctx.guild.id} - C:{chid} - Au:{msg.author_id} {msg.author.username}#{msg.author.identify_num} = {msg.content}"
-    )
-    logFlush() # 刷缓冲区
+def logMsg(msg:Message):
+    try:
+        gid,chid = "pm","pm"
+        if not isinstance(msg, PrivateMessage): # 不是私聊
+            chid = msg.ctx.channel.id
+            gid = msg.ctx.guild.id
+        # 打印日志
+        _log.info(
+            f"G:{gid} | C:{chid} | Au:{msg.author_id} {msg.author.username}#{msg.author.identify_num} = {msg.content}"
+        )
+        logFlush() # 刷缓冲区
+    except:
+        _log.exception(f"err in logging")
 
 # 查看bot状态
 @bot.command(name='alive',case_sensitive=False)
 async def alive_check(msg:Message,*arg):
-    logging(msg)
-    await msg.reply(f"bot alive here")# 回复
+    try:
+        logMsg(msg)
+        await msg.reply(f"bot alive here")# 回复
+    except:
+        _log.exception(f"Err in help")
 
 # 帮助命令
 @bot.command(name='lgh',case_sensitive=False)
 async def help(msg:Message,*arg):
-    logging(msg)
-    text = "「/alive」看看bot是否在线\n"
-    text+= "「/setch」将本频道设置为日志频道 (执行后才会开始监看)\n"
-    text+= "「/ignch」在监看中忽略本频道\n"
-    text+= "「/clear」清除本服务器的设置\n"
-    text+= " 出现其他频道链接时，机器人会提醒用户、删除该消息，并发送链接相关信息到日志频道"
-    cm = CardMessage()
-    c = Card(
-        Module.Header(f"LinkGuard 的帮助命令"),
-        Module.Divider(),
-        Module.Section(text),
-        Module.Container(Element.Image(src="https://img.kookapp.cn/assets/2023-04/AV0prInBSO0ju0aq.png"))
-    )
-    cm.append(c)
-    await msg.reply(cm)
+    try:
+        logMsg(msg)
+        text = "" if not "notice" in config else config["notice"]
+        text+= "「/alive」看看bot是否在线\n"
+        text+= "「/setch」将本频道设置为日志频道 (执行后才会开始监看)\n"
+        text+= "「/ignch」在监看中忽略本频道\n"
+        text+= "「/clear」清除本服务器的设置\n"
+        text+= " 出现其他频道链接时，机器人会提醒用户、删除该消息，并发送链接相关信息到日志频道"
+        cm = CardMessage()
+        c = Card(
+            Module.Header(f"LinkGuard 的帮助命令"),
+            Module.Divider(),
+            Module.Section(text),
+            Module.Container(Element.Image(src="https://img.kookapp.cn/assets/2023-04/AV0prInBSO0ju0aq.png"))
+        )
+        cm.append(c)
+        await msg.reply(cm)
+    except Exception as result:
+        _log.exception(f"Err in help")
+        await msg.reply(f"ERR! [{GetTime()}] help - {result}")
 
 # 设置日志频道
 @bot.command(name='setch',case_sensitive=False)
 async def set_channel(msg:Message,*arg):
     try:
-        logging(msg)
+        logMsg(msg)
         global LinkLog
         # 不在内，则创建键值
         if msg.ctx.guild.id not in LinkLog['set']:
@@ -71,10 +90,10 @@ async def set_channel(msg:Message,*arg):
         await msg.reply(f"已将当前频道设置为LinkGuard Bot的日志频道")
         # 写入文件
         write_file(LinkLogPath,LinkLog) 
-        print(f"[{GetTime()}] setch G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
+        _log.info(f"[setch] G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] setch - {result}"
-        print(err_str)
+        _log.exception(f"Err in setch")
         await msg.reply(err_str)
         await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
 
@@ -82,7 +101,7 @@ async def set_channel(msg:Message,*arg):
 @bot.command(name='ignch',case_sensitive=False)
 async def ignore_channel(msg:Message,*arg):
     try:
-        logging(msg)
+        logMsg(msg)
         global LinkLog
         gid = msg.ctx.guild.id
         chid = msg.ctx.channel.id
@@ -95,17 +114,17 @@ async def ignore_channel(msg:Message,*arg):
         # 写入文件
         await msg.reply(f"已将本频道忽略")
         write_file(LinkLogPath,LinkLog) 
-        print(f"[{GetTime()}] ignch G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
+        _log.info(f"[ignch] G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] ignch - {result}"
-        print(err_str)
+        _log.exception(f"Err in ignch")
         await msg.reply(err_str)
         await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
 
 @bot.command(name='clear',case_sensitive=False)
 async def clear_setting(msg:Message,*arg):
     try:
-        logging(msg)
+        logMsg(msg)
         global LinkLog
         gid = msg.ctx.guild.id
         if gid not in LinkLog['set']:
@@ -116,10 +135,10 @@ async def clear_setting(msg:Message,*arg):
         await msg.reply(f"已清楚本服务器的设置")
         # 写入文件
         write_file(LinkLogPath,LinkLog) 
-        print(f"[{GetTime()}] clear G:{msg.ctx.guild.id}")
+        _log.info(f"[clear] G:{msg.ctx.guild.id}")
     except Exception as result:
+        _log.exception(f"Err in clear")
         err_str=f"ERR! [{GetTime()}] clear - {result}"
-        print(err_str)
         await msg.reply(err_str)
         await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
 
@@ -138,7 +157,7 @@ def write_log(gid:str,usrid:str,ret:str):
     LinkLog['data'][gid][usrid].append(ret)
     # 写入文件
     write_file(LinkLogPath,LinkLog) 
-    print(f"[{GetTime()}] G:{gid} = Au:{usrid} = write_log")
+    _log.info(f"G:{gid} = Au:{usrid} = write_log")
     logFlush() # 刷缓冲区
 
 # 判断邀请链接的api
@@ -182,7 +201,7 @@ async def invite_ck(msg:Message,code: str):
     if ret['guild']['id'] != gid:
         write_log(gid,usrid,ret['guild'])  # 写入日志
         await send_log(gid,usrid,usrname,code,ret['guild'])  # 发送通知
-        print(f"[{GetTime()}] G:{gid} C:{chid} Au:{usrid}\n[ret] {code} : {ret['guild']}")
+        _log.info(f"G:{gid} C:{chid} Au:{usrid}\n[ret] {code} : {ret['guild']}")
         return True # 不是本服务器的邀请链接，返回true
     # 是本服务器返回false
     return False 
@@ -208,22 +227,20 @@ async def link_guard(msg: Message):
                 await msg.reply(f"(met){msg.author_id}(met) 请不要发送其他服务器的邀请链接！")
                 await msg.delete() # 删除邀请链接消息
     except requester.HTTPRequester.APIRequestFailed as result:
-        err_str=f"ERR! [{GetTime()}] link_guard APIRequestFailed - {result}"
-        print(err_str)
+        _log.exception(f"APIRequestFailed in link_guard")
         if "无删除权限" in str(result):
             ch = await bot.client.fetch_public_channel(LinkLog['set'][msg.ctx.guild.id]['log_ch'])
             await bot.client.send(ch,f"请开启本服务器的删除文字权限")
         elif "message/create" in str(result) and "没有权限" in str(result):
             pass
     except client_exceptions.ClientConnectorError as result:
-        err_str=f"ERR! [{GetTime()}] link_guard\naiohttp.client_exceptions.ClientConnectorError\n{result}"
         if 'kookapp.cn' in str(result):
-            print(f"ERR! [{GetTime()}] {str(result)}")
+            _log.error(f"ERR! {str(result)}")
             return
-        print(err_str)
+        _log.exception(f"aiohttp Err in link_guard")
     except Exception as result:
-        err_str=f"ERR! [{GetTime()}] link_guard - {result}"
-        print(err_str)
+        err_str=f"ERR! [{GetTime()}] link_guard\n```\n{traceback.format_exc()}\n```"
+        _log.exception("Err in link_guard")
         await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
 
 
@@ -235,13 +252,12 @@ async def startup_task():
     try:
         global debug_ch
         debug_ch = await bot.client.fetch_public_channel(config['debug_ch'])
-        print(f"[BOT.START] fetch debug channel success")
+        _log.info("[BOT.START] fetch debug channel success")
         logFlush() # 刷缓冲区
     except:
-        err_cur=str(traceback.format_exc())
-        print(f"[BOT.START] ERR!\n{err_cur}")
+        _log.exception(f"[BOT.START] ERR!")
         logFlush() # 刷缓冲区
-        os._exit(-1)
+        os.abort()
 
 # botmarket通信
 @bot.task.add_interval(minutes=30)
@@ -255,5 +271,5 @@ async def botmarket():
 # 开机 （如果是主文件就开机）
 if __name__ == '__main__':
     # 开机的时候打印一次时间，记录开启时间
-    print(f"[BOT] Start at {GetTime()}")
+    _log.info(f"[BOT] Start at {GetTime()}")
     bot.run()

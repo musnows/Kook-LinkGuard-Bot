@@ -1,5 +1,6 @@
 # encoding: utf-8
 # 本文件仅供replit部署使用
+# https://blog.musnow.top/posts/2556995516/
 # 如果您是在云服务器/本地电脑部署本bot，请忽略此文件
 
 from flask import Flask
@@ -12,7 +13,7 @@ app = Flask(' ')
 @app.route('/')
 def home():
     text = "bot online!"
-    print(text)
+    print(f"recv get in route / {text}")
     return text
 
 
@@ -28,14 +29,14 @@ def keep_alive():
 
 
 # 标准输出重定向至文件
-from main import logDup, bot, GetTime
+from main import bot,GetTime,_log,config
 
 # 开机
 if __name__ == '__main__':
     # 开机的时候打印一次时间，记录开启时间
-    print(f"[BOT] Start in replit {GetTime()}")
-    logDup('./log/log.txt')
-    print(f"[BOT] Start in replit {GetTime()}")
+    _log.info(f"[BOT] Start in replit {GetTime()}")
     # 采用wh启动机器人，不需要用flask也能保证机器人活跃
-    # keep_alive()  # 运行Flask
-    bot.run()  # 运行机器人
+    if config["ws"]: # websocket才需要执行flask
+        keep_alive()  # 运行Flask
+    # 运行机器人
+    bot.run()  
