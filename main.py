@@ -76,8 +76,8 @@ async def help(msg:Message,*arg):
         c = Card(
             Module.Header(f"LinkGuard 的帮助命令"),
             Module.Divider(),
-            Module.Section(text),
-            Module.Container(Element.Image(src="https://img.kookapp.cn/assets/2023-04/AV0prInBSO0ju0aq.png"))
+            Module.Section(Element.Text(text,Types.Text.KMD)),
+            Module.Container(Element.Image(src="https://img.kookapp.cn/assets/2023-04/T56YuWvvuQ0hm095.png"))
         )
         cm.append(c)
         await msg.reply(cm)
