@@ -1,5 +1,6 @@
 import json
 import aiohttp
+import asyncio
 import traceback
 import os
 
@@ -25,11 +26,13 @@ LinkLogPath = './config/linklog.json'
 """日志文件路径"""
 LinkLog = open_file(LinkLogPath)
 """日志文件 {"data":{}}"""
+FlieSaveLock = asyncio.Lock()
+"""用于日志文件写入的锁"""
 
 #####################################################################################
 
-# 命令日志
 def logMsg(msg:Message):
+    """命令日志"""
     try:
         gid,chid = "pm","pm"
         if not isinstance(msg, PrivateMessage): # 不是私聊
@@ -42,6 +45,12 @@ def logMsg(msg:Message):
         logFlush() # 刷缓冲区
     except:
         _log.exception(f"err in logging")
+
+async def write_link_log():
+    """写入日志"""
+    async with FlieSaveLock:
+        write_file(LinkLogPath,LinkLog)
+        _log.info(f"[write_file] LinkLog to {LinkLogPath}")
 
 # 查看bot状态
 @bot.command(name='alive',case_sensitive=False)
@@ -89,7 +98,7 @@ async def set_channel(msg:Message,*arg):
         LinkLog['set'][msg.ctx.guild.id]['log_ch'] = msg.ctx.channel.id
         await msg.reply(f"已将当前频道设置为LinkGuard Bot的日志频道")
         # 写入文件
-        write_file(LinkLogPath,LinkLog) 
+        await write_link_log()
         _log.info(f"[setch] G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] setch - {result}"
@@ -113,7 +122,7 @@ async def ignore_channel(msg:Message,*arg):
             LinkLog['set'][gid]['ign_ch'].append(chid)
         # 写入文件
         await msg.reply(f"已将本频道忽略")
-        write_file(LinkLogPath,LinkLog) 
+        await write_link_log()
         _log.info(f"[ignch] G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] ignch - {result}"
@@ -134,7 +143,7 @@ async def clear_setting(msg:Message,*arg):
         del LinkLog['set'][gid]
         await msg.reply(f"已清楚本服务器的设置")
         # 写入文件
-        write_file(LinkLogPath,LinkLog) 
+        await write_link_log()
         _log.info(f"[clear] G:{msg.ctx.guild.id}")
     except Exception as result:
         _log.exception(f"Err in clear")
@@ -145,7 +154,7 @@ async def clear_setting(msg:Message,*arg):
 #####################################################################################
 
 # 写入日志
-def write_log(gid:str,usrid:str,ret:str):
+async def write_log(gid:str,usrid:str,ret:str):
     global LinkLog
     # 新建服务器键值
     if gid not in LinkLog['data']:
@@ -156,7 +165,7 @@ def write_log(gid:str,usrid:str,ret:str):
     # 插入返回值
     LinkLog['data'][gid][usrid].append(ret)
     # 写入文件
-    write_file(LinkLogPath,LinkLog) 
+    await write_link_log()
     _log.info(f"G:{gid} = Au:{usrid} = write_log")
     logFlush() # 刷缓冲区
 
@@ -199,7 +208,7 @@ async def invite_ck(msg:Message,code: str):
     # 判断是否为当前服务器
     ret = await check_invites(code)
     if ret['guild']['id'] != gid:
-        write_log(gid,usrid,ret['guild'])  # 写入日志
+        await write_log(gid,usrid,ret['guild'])  # 写入日志
         await send_log(gid,usrid,usrname,code,ret['guild'])  # 发送通知
         _log.info(f"G:{gid} C:{chid} Au:{usrid}\n[ret] {code} : {ret['guild']}")
         return True # 不是本服务器的邀请链接，返回true
