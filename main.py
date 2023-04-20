@@ -202,18 +202,26 @@ async def invite_ck(msg:Message,code: str):
     chid = msg.ctx.channel.id # 文字频道id
     usrid = msg.author_id     # 发送链接的用户id
     usrname = f"{msg.author.username}#{msg.author.identify_num}"
-    # 之前配置过ign，忽略此频道
-    if chid in LinkLog['set'][gid]['ign_ch']:
-        return False
-    # 判断是否为当前服务器
-    ret = await check_invites(code)
-    if ret['guild']['id'] != gid:
-        await write_log(gid,usrid,ret['guild'])  # 写入日志
-        await send_log(gid,usrid,usrname,code,ret['guild'])  # 发送通知
-        _log.info(f"G:{gid} C:{chid} Au:{usrid}\n[ret] {code} : {ret['guild']}")
-        return True # 不是本服务器的邀请链接，返回true
-    # 是本服务器返回false
-    return False 
+    ret = "none"
+    try:
+        # 之前配置过ign，忽略此频道
+        if chid in LinkLog['set'][gid]['ign_ch']:
+            return False
+        # 判断是否为当前服务器
+        ret = await check_invites(code)
+        if ret['guild']['id'] != gid:
+            await write_log(gid,usrid,ret['guild'])  # 写入日志
+            await send_log(gid,usrid,usrname,code,ret['guild'])  # 发送通知
+            _log.info(f"G:{gid} C:{chid} Au:{usrid}\n[ret] {code} : {ret['guild']}")
+            return True # 不是本服务器的邀请链接，返回true
+        # 是本服务器返回false
+        return False 
+    except KeyError as result:
+        if 'guild' in str(result) or 'id' in str(result):
+            _log.warning(f"G:{gid} C:{chid} Au:{usrid} | code:{code} | keyErr {result} | ret:{ret}")
+            return False # 出现了keyerr无法正常判断，认为是本服务器id
+        # 其他情况依旧raise
+        raise result
 
 
 # 监看本频道的邀请链接
@@ -235,6 +243,7 @@ async def link_guard(msg: Message):
             if ret: # 不是本服务器的邀请链接
                 await msg.reply(f"(met){msg.author_id}(met) 请不要发送其他服务器的邀请链接！")
                 await msg.delete() # 删除邀请链接消息
+                _log.info(f"G:{msg.ctx.guild.id} C:{msg.ctx.channel.id} Au:{msg.author_id} | inform & msg.delete")
     except requester.HTTPRequester.APIRequestFailed as result:
         _log.exception(f"APIRequestFailed in link_guard")
         if "无删除权限" in str(result):
@@ -258,8 +267,11 @@ async def link_guard(msg: Message):
 # 开机任务
 @bot.task.add_date()
 async def startup_task():
+    global debug_ch
     try:
-        global debug_ch
+        # 暴力测试是否有data键值
+        assert('data' in LinkLog)
+        # 获取debug频道
         debug_ch = await bot.client.fetch_public_channel(config['debug_ch'])
         _log.info("[BOT.START] fetch debug channel success")
         logFlush() # 刷缓冲区
