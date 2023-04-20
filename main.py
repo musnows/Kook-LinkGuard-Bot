@@ -46,11 +46,15 @@ def logMsg(msg:Message):
     except:
         _log.exception(f"err in logging")
 
-async def write_link_log():
+async def write_link_log(log_info=""):
     """写入日志"""
-    async with FlieSaveLock:
-        write_file(LinkLogPath,LinkLog)
-        _log.info(f"[write_file] LinkLog to {LinkLogPath}")
+    try:
+        global FlieSaveLock
+        async with FlieSaveLock:
+            write_file(LinkLogPath,LinkLog)
+            _log.info(f"[write_file] LinkLog to {LinkLogPath} {log_info}")
+    except:
+        _log.exception(f"Err when write file")
 
 # 查看bot状态
 @bot.command(name='alive',case_sensitive=False)
@@ -281,13 +285,16 @@ async def startup_task():
         os.abort()
 
 # botmarket通信
-@bot.task.add_interval(minutes=30)
+@bot.task.add_interval(minutes=25)
 async def botmarket():
     api = "http://bot.gekj.net/api/v1/online.bot"
     headers = {'uuid': '1d266c78-30b2-4299-b470-df0441862711'}
     async with aiohttp.ClientSession() as session:
         await session.post(api, headers=headers)
-
+# 定时写文件
+@bot.task.add_interval(minutes=5)
+async def save_log_file_task():
+    await write_link_log(log_info="[BOT.TASK]")
 
 # 开机 （如果是主文件就开机）
 if __name__ == '__main__':
