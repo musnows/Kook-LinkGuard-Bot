@@ -79,7 +79,7 @@ async def alive_check(msg:Message,*arg):
         _log.exception(f"Err in help")
 
 # 帮助命令
-@bot.command(name='lgh',case_sensitive=False)
+@bot.command(name='lgh',aliases=['lghelp'],case_sensitive=False)
 async def help(msg:Message,*arg):
     try:
         logMsg(msg)
@@ -113,7 +113,11 @@ async def set_channel(msg:Message,*arg):
             LinkConf['set'][msg.ctx.guild.id] = {'log_ch':'','ign_ch':[]}
         # 设置当前频道为通知频道
         LinkConf['set'][msg.ctx.guild.id]['log_ch'] = msg.ctx.channel.id
-        await msg.reply(f"已将当前频道设置为LinkGuard Bot的日志频道")
+        text = f"已将当前频道设置为 LinkGuard 的日志频道\n"
+        text+= f"频道信息：(chn){msg.ctx.channel.id}(chn)\n"
+        text+= f"频道ID：{msg.ctx.channel.id}"
+        cm = CardMessage(Card(Module.Section(Element.Text(text,Types.Text.KMD))))
+        await msg.reply(cm)
         # 写入文件
         await write_link_conf()
         _log.info(f"[setch] G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
@@ -137,8 +141,12 @@ async def ignore_channel(msg:Message,*arg):
         # 如果文字频道id不在ign里面，则追加
         if chid not in LinkConf['set'][gid]['ign_ch']:
             LinkConf['set'][gid]['ign_ch'].append(chid)
+        text = f"已将当前频道从 LinkGuard 的监看中忽略\n"
+        text+= f"频道信息：(chn){msg.ctx.channel.id}(chn)\n"
+        text+= f"频道ID：{msg.ctx.channel.id}"
+        cm = CardMessage(Card(Module.Section(Element.Text(text,Types.Text.KMD))))
+        await msg.reply(cm)
         # 写入文件
-        await msg.reply(f"已将本频道忽略")
         await write_link_conf()
         _log.info(f"[ignch] G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
@@ -158,7 +166,8 @@ async def clear_setting(msg:Message,*arg):
             return
         # 删除键值
         del LinkConf['set'][gid]
-        await msg.reply(f"已清楚本服务器的设置")
+        cm = CardMessage(Card(Module.Section(Element.Text("已清除本服务器的设置",Types.Text.KMD))))
+        await msg.reply(cm)
         # 写入文件
         await write_link_conf()
         _log.info(f"[clear] G:{msg.ctx.guild.id}")
