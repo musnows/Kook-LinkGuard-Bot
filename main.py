@@ -24,8 +24,12 @@ headers = {f'Authorization': f"Bot {config['token']}"}
 # 打开日志文件
 LinkLogPath = './config/linklog.json'
 """日志文件路径"""
+LinkConfPath = './config/linkconf.json'
+"""服务器配置记录文件"""
 LinkLog = open_file(LinkLogPath)
 """日志文件 {"data":{}}"""
+LinkConf = open_file(LinkConfPath)
+"""服务器配置记录 {set:{}}"""
 FlieSaveLock = asyncio.Lock()
 """用于日志文件写入的锁"""
 
@@ -53,6 +57,15 @@ async def write_link_log(log_info=""):
         async with FlieSaveLock:
             write_file(LinkLogPath,LinkLog)
             _log.info(f"[write_file] LinkLog to {LinkLogPath} {log_info}")
+    except:
+        _log.exception(f"Err when write file")
+async def write_link_conf(log_info=""):
+    """写入配置文件"""
+    try:
+        global FlieSaveLock
+        async with FlieSaveLock:
+            write_file(LinkConfPath,LinkConf)
+            _log.info(f"[write_file] LinkConf to {LinkConfPath} {log_info}")
     except:
         _log.exception(f"Err when write file")
 
@@ -94,15 +107,15 @@ async def help(msg:Message,*arg):
 async def set_channel(msg:Message,*arg):
     try:
         logMsg(msg)
-        global LinkLog
+        global LinkLog,LinkConf
         # 不在内，则创建键值
-        if msg.ctx.guild.id not in LinkLog['set']:
-            LinkLog['set'][msg.ctx.guild.id] = {'log_ch':'','ign_ch':[]}
+        if msg.ctx.guild.id not in LinkConf['set']:
+            LinkConf['set'][msg.ctx.guild.id] = {'log_ch':'','ign_ch':[]}
         # 设置当前频道为通知频道
-        LinkLog['set'][msg.ctx.guild.id]['log_ch'] = msg.ctx.channel.id
+        LinkConf['set'][msg.ctx.guild.id]['log_ch'] = msg.ctx.channel.id
         await msg.reply(f"已将当前频道设置为LinkGuard Bot的日志频道")
         # 写入文件
-        await write_link_log()
+        await write_link_conf()
         _log.info(f"[setch] G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] setch - {result}"
@@ -115,18 +128,18 @@ async def set_channel(msg:Message,*arg):
 async def ignore_channel(msg:Message,*arg):
     try:
         logMsg(msg)
-        global LinkLog
+        global LinkLog,LinkConf
         gid = msg.ctx.guild.id
         chid = msg.ctx.channel.id
-        if gid not in LinkLog['set']:
+        if gid not in LinkConf['set']:
             await msg.reply(f"请先使用「/setch」命令设置日志频道，详见「/lgh」帮助命令")
             return
         # 如果文字频道id不在ign里面，则追加
-        if chid not in LinkLog['set'][gid]['ign_ch']:
-            LinkLog['set'][gid]['ign_ch'].append(chid)
+        if chid not in LinkConf['set'][gid]['ign_ch']:
+            LinkConf['set'][gid]['ign_ch'].append(chid)
         # 写入文件
         await msg.reply(f"已将本频道忽略")
-        await write_link_log()
+        await write_link_conf()
         _log.info(f"[ignch] G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
         err_str=f"ERR! [{GetTime()}] ignch - {result}"
@@ -138,16 +151,16 @@ async def ignore_channel(msg:Message,*arg):
 async def clear_setting(msg:Message,*arg):
     try:
         logMsg(msg)
-        global LinkLog
+        global LinkLog,LinkConf
         gid = msg.ctx.guild.id
-        if gid not in LinkLog['set']:
+        if gid not in LinkConf['set']:
             await msg.reply(f"请先使用「/setch」命令设置日志频道，详见「/lgh」帮助命令")
             return
         # 删除键值
-        del LinkLog['set'][gid]
+        del LinkConf['set'][gid]
         await msg.reply(f"已清楚本服务器的设置")
         # 写入文件
-        await write_link_log()
+        await write_link_conf()
         _log.info(f"[clear] G:{msg.ctx.guild.id}")
     except Exception as result:
         _log.exception(f"Err in clear")
@@ -193,7 +206,7 @@ async def send_log(gid:str,usrid:str,usrname:str,code:str,ret:str):
         Module.Section(Element.Text(text,Types.Text.KMD))
     )
     cm.append(c)
-    ch = await bot.client.fetch_public_channel(LinkLog['set'][gid]['log_ch'])
+    ch = await bot.client.fetch_public_channel(LinkConf['set'][gid]['log_ch'])
     await bot.client.send(ch,cm)
 
 # 监看url是否为当前频道
@@ -209,7 +222,7 @@ async def invite_ck(msg:Message,code: str):
     ret = "none"
     try:
         # 之前配置过ign，忽略此频道
-        if chid in LinkLog['set'][gid]['ign_ch']:
+        if chid in LinkConf['set'][gid]['ign_ch']:
             return False
         # 判断是否为当前服务器
         ret = await check_invites(code)
@@ -235,7 +248,7 @@ async def link_guard(msg: Message):
         # 是私聊，直接退出
         if isinstance(msg, PrivateMessage):
             return
-        if msg.ctx.guild.id not in LinkLog['set']:
+        if msg.ctx.guild.id not in LinkConf['set']:
             return # 必须要配置日志频道，才会启用
         # 消息内容
         text = msg.content 
@@ -251,7 +264,7 @@ async def link_guard(msg: Message):
     except requester.HTTPRequester.APIRequestFailed as result:
         _log.exception(f"APIRequestFailed in link_guard")
         if "无删除权限" in str(result):
-            ch = await bot.client.fetch_public_channel(LinkLog['set'][msg.ctx.guild.id]['log_ch'])
+            ch = await bot.client.fetch_public_channel(LinkConf['set'][msg.ctx.guild.id]['log_ch'])
             await bot.client.send(ch,f"请开启本服务器的删除文字权限")
         elif "message/create" in str(result) and "没有权限" in str(result):
             pass
@@ -275,13 +288,12 @@ async def startup_task():
     try:
         # 暴力测试是否有data键值
         assert('data' in LinkLog)
+        assert('set' in LinkConf)
         # 获取debug频道
         debug_ch = await bot.client.fetch_public_channel(config['debug_ch'])
         _log.info("[BOT.START] fetch debug channel success")
-        logFlush() # 刷缓冲区
     except:
         _log.exception(f"[BOT.START] ERR!")
-        logFlush() # 刷缓冲区
         os.abort()
 
 # botmarket通信
