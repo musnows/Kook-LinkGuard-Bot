@@ -11,6 +11,17 @@
 
 在频道内发送`/setch`，bot将此频道设置为日志频道，并开启对整个服务器的邀请链接监控（必须执行此命令，否则bot不会工作）
 
+更多命令详见 `/lgh` 帮助命令
+
+```python
+text+= "「/alive」看看bot是否在线\n"
+text+= "「/setch」将本频道设置为日志频道 (执行后才会开始监看)\n"
+text+= "「/ignch」在监看中忽略本频道\n"
+text+= "「/clear」清除本服务器的设置\n"
+```
+
+### 功能截图
+
 ![log_cm](https://img.kookapp.cn/assets/2023-02/XnNCA8XoZl0jl0aa.png)
 
 ![msg_delete](https://img.kookapp.cn/assets/2023-02/ycJ3MJHzSJ0h603w.png)
