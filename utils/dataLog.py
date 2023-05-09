@@ -9,12 +9,11 @@ if SQLITE_ENABLE:
     import sqlite3
     DB_NAME = 'config/linkLog.db'
     """数据库名"""
-    TB_CREATE = "CREATE TABLE IF NOT EXISTS link_log(guild_id TEXT NOT NULL,user_id TEXT NOT NULL,invite_code TEXT NOT NULL,invite_info TEXT NOT NULL);"
-    """创建表"""
+    LOG_TB_CREATE = "CREATE TABLE IF NOT EXISTS link_log(guild_id TEXT NOT NULL,user_id TEXT NOT NULL,invite_code TEXT NOT NULL,invite_info TEXT NOT NULL);"
     # 先创建数据库中的表
     db = sqlite3.connect(DB_NAME)
     query = db.cursor()
-    query.execute(TB_CREATE) # 需要执行的sql命令
+    query.execute(LOG_TB_CREATE) # 需要执行的sql命令
     db.commit() # 执行
     db.close() # 关闭
 
