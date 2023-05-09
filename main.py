@@ -29,14 +29,14 @@ SetCmdLock = asyncio.Lock()
 async def get_card_msg(text:str,sub_text="",header_text="",err_card=False):
     """获取一个简单卡片的函数"""
     c = Card()
-    if header_text:
+    if header_text !="":
         c.append(Module.Header(header_text))
         c.append(Module.Divider())
     if err_card:# 错误卡
         text += f"\n```\n{traceback.format_exc()}\n```\n"
     # 总有内容
     c.append(Module.Section(Element.Text(text,Types.Text.KMD)))
-    if sub_text:
+    if sub_text != "":
         c.append(Module.Context(Element.Text(sub_text,Types.Text.KMD)))
     return CardMessage(c)
 
@@ -91,7 +91,6 @@ async def set_channel(msg:Message,*arg):
         text = f"频道信息：(chn){msg.ctx.channel.id}(chn)\n"
         text+= f"频道ID：  {msg.ctx.channel.id}"
         cm = await get_card_msg(text,header_text="已将当前频道设置为 LinkGuard 的日志频道")
-        cm = CardMessage(Card(Module.Section(Element.Text(text,Types.Text.KMD))))
         await msg.reply(cm)
         # 写入文件
         await write_link_conf()
@@ -117,7 +116,7 @@ async def ignore_channel(msg:Message,*arg):
         if chid not in LinkConf['set'][gid]['ign_ch']:
             LinkConf['set'][gid]['ign_ch'].append(chid)
         # 构造卡片
-        text = f"频道信息：(chn){msg.ctx.channel.id}(chn)\n"
+        text = f"忽略频道：(chn){msg.ctx.channel.id}(chn)\n"
         text+= f"频道ID：{msg.ctx.channel.id}"
         cm = await get_card_msg(text,header_text="已将当前频道从 LinkGuard 的监看中忽略")
         await msg.reply(cm)
@@ -141,9 +140,13 @@ async def clear_setting(msg:Message,*arg):
             cm = await get_card_msg(text)
             return await msg.reply(cm)
             
+        ch_id = LinkConf['set'][gid]['log_ch']
+        text = f"监听频道信息：(chn){ch_id}(chn)\n"
+        text+= f"监听频道ID：  {ch_id}"
         # 删除键值
-        del LinkConf['set'][gid]
-        cm = CardMessage(Card(Module.Section(Element.Text("已清除本服务器的监听设置",Types.Text.KMD))))
+        del LinkConf['set'][gid] 
+        # 发送信息
+        cm = await get_card_msg(text,header_text="已清除本服务器的监听设置")
         await msg.reply(cm)
         # 写入文件
         await write_link_conf()
