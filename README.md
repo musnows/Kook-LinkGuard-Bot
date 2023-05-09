@@ -31,13 +31,30 @@ text+= "「/clear」清除本服务器的设置\n"
 
 保证python版本大于3.9，安装如下包
 ```
-pip3 install khl.py
+pip3 install -r requirements.txt
 ```
 
 根据`config/config-exp.json`，新建一个`config/config.json`文件，在里面写入相对应的字段。
+
+* debug_ch 文字频道id，进kook设置-高级-开启开发者模式，右键频道复制
+* sqlite_enable 是否使用sqlite3来存放违规的邀请链接。如果使用默认的json策略，`可能`会因为json字符串过长而写入磁盘失败。如果你的服务器所安装python支持sqlite3，建议启用。
 
 配置完毕以后，就可以运行bot了
 
 ```
 python3 main.py
 ```
+
+### 一键部署到replit
+
+注册[replit](https://replit.com/)，
+
+```
+git clone https://github.com/musnows/Kook-LinkGuard-Bot.git && mv -b Kook-LinkGuard-Bot/* ./ && mv -b Kook-LinkGuard-Bot/.[^.]* ./  && rm -rf Kook-LinkGuard-Bot && pip install -r requirements.txt
+```
+
+克隆完成后，同样是修改`config/config.json`。随后点击上方绿色RUN按钮，即可运行bot。将右侧webview中出现的url填入kook的callback-url，即可上线机器人。
+
+更多教程信息详见 [Kook-Ticket-Bot/wiki](https://github.com/musnows/Kook-Ticket-Bot/wiki)，基本步骤相同，repl保活工作二者都需要做。
+
+若有不懂之处，可加入[帮助服务器](https://kook.top/gpbTwZ)咨询
