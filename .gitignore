@@ -1,3 +1,5 @@
+!config/config-exp.json
+# 忽略配置文件
 config/
 __pycache__/
 *.log

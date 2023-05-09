@@ -1,35 +1,39 @@
-import json
 import sys
 import logging # 采用logging来替换所有print
 from datetime import datetime,timezone,timedelta
+from khl import Message,PrivateMessage
 
 LOGGER_NAME = "bot-log" # 日志对象名字，这个没啥用
 LOGGER_FILE = "bot.log" # 如果想修改log文件的名字和路径，修改此变量
 """日志文件路径"""
 
 #将获取当前时间封装成函数方便使用
-def GetTime(format_str='%y-%m-%d %H:%M:%S'):
+def get_time(format_str='%y-%m-%d %H:%M:%S'):
     """获取当前时间，格式为 `23-01-01 00:00:00`"""
     utc_dt = datetime.now(timezone.utc) # 获取当前时间
     beijing_time = utc_dt.astimezone(timezone(timedelta(hours=8))) # 转换为北京时间
     return beijing_time.strftime(format_str)
     # return time.strftime("%y-%m-%d %H:%M:%S", time.localtime())
 
-def write_file(path: str, value):
-    """写入文件"""
-    with open(path, 'w+', encoding='utf-8') as fw2:
-        json.dump(value, fw2, indent=2, sort_keys=True, ensure_ascii=False)
-
-def open_file(path:str):
-    """读取json文件"""
-    with open(path, 'r', encoding='utf-8') as f:
-        tmp = json.load(f)
-    return tmp
-
-def logFlush():
+def log_flush():
     """刷新输出缓冲区"""
     sys.stdout.flush() # 刷新缓冲区
     sys.stderr.flush() # 刷新缓冲区
+
+def log_msg(msg:Message):
+    """命令日志"""
+    try:
+        gid,chid = "pm","pm"
+        if not isinstance(msg, PrivateMessage): # 不是私聊
+            chid = msg.ctx.channel.id
+            gid = msg.ctx.guild.id
+        # 打印日志
+        _log.info(
+            f"G:{gid} | C:{chid} | Au:{msg.author_id} {msg.author.username}#{msg.author.identify_num} = {msg.content}"
+        )
+        log_flush() # 刷缓冲区
+    except:
+        _log.exception(f"err in logging")
 
 
 def beijing(sec, what):

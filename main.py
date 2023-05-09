@@ -8,11 +8,10 @@ from khl import Bot,Cert, Message,PrivateMessage,requester
 from khl.card import Card,CardMessage,Types,Module,Element
 from aiohttp import client_exceptions
 
-from utils import open_file,write_file,GetTime,logFlush,_log
+from utils.files import *
+from utils.mylog import get_time,log_flush,log_msg,_log
 
 # 用读取来的 config 初始化 bot
-config = open_file('./config/config.json')
-"""机器人配置文件"""
 bot = Bot(token=config['token']) # websocket
 if not config["ws"]: # webhook
     _log.info(f"[BOT] using webhook at {config['webhook_port']}")
@@ -21,59 +20,30 @@ if not config["ws"]: # webhook
 # 配置kook头链接
 kook = "https://www.kookapp.cn"
 headers = {f'Authorization': f"Bot {config['token']}"}
-# 打开日志文件
-LinkLogPath = './config/linklog.json'
-"""日志文件路径"""
-LinkConfPath = './config/linkconf.json'
-"""服务器配置记录文件"""
-LinkLog = open_file(LinkLogPath)
-"""日志文件 {"data":{}}"""
-LinkConf = open_file(LinkConfPath)
-"""服务器配置记录 {set:{}}"""
-FlieSaveLock = asyncio.Lock()
-"""用于日志文件写入的锁"""
+SetCmdLock = asyncio.Lock()
+"""配置命令上锁"""
 
 #####################################################################################
 
-def logMsg(msg:Message):
-    """命令日志"""
-    try:
-        gid,chid = "pm","pm"
-        if not isinstance(msg, PrivateMessage): # 不是私聊
-            chid = msg.ctx.channel.id
-            gid = msg.ctx.guild.id
-        # 打印日志
-        _log.info(
-            f"G:{gid} | C:{chid} | Au:{msg.author_id} {msg.author.username}#{msg.author.identify_num} = {msg.content}"
-        )
-        logFlush() # 刷缓冲区
-    except:
-        _log.exception(f"err in logging")
-
-async def write_link_log(log_info=""):
-    """写入日志"""
-    try:
-        global FlieSaveLock
-        async with FlieSaveLock:
-            write_file(LinkLogPath,LinkLog)
-            _log.info(f"[write_file] LinkLog to {LinkLogPath} {log_info}")
-    except:
-        _log.exception(f"Err when write file")
-async def write_link_conf(log_info=""):
-    """写入配置文件"""
-    try:
-        global FlieSaveLock
-        async with FlieSaveLock:
-            write_file(LinkConfPath,LinkConf)
-            _log.info(f"[write_file] LinkConf to {LinkConfPath} {log_info}")
-    except:
-        _log.exception(f"Err when write file")
+async def get_card_msg(text:str,sub_text="",header_text="",err_card=False):
+    """获取一个简单卡片的函数"""
+    c = Card()
+    if header_text:
+        c.append(Module.Header(header_text))
+        c.append(Module.Divider())
+    if err_card:# 错误卡
+        text += f"\n```\n{traceback.format_exc()}\n```\n"
+    # 总有内容
+    c.append(Module.Section(Element.Text(text,Types.Text.KMD)))
+    if sub_text:
+        c.append(Module.Context(Element.Text(sub_text,Types.Text.KMD)))
+    return CardMessage(c)
 
 # 查看bot状态
 @bot.command(name='alive',case_sensitive=False)
 async def alive_check(msg:Message,*arg):
     try:
-        logMsg(msg)
+        log_msg(msg)
         await msg.reply(f"bot alive here")# 回复
     except:
         _log.exception(f"Err in help")
@@ -82,7 +52,7 @@ async def alive_check(msg:Message,*arg):
 @bot.command(name='lgh',aliases=['lghelp'],case_sensitive=False)
 async def help(msg:Message,*arg):
     try:
-        logMsg(msg)
+        log_msg(msg)
         text = "" if not "notice" in config else config["notice"]
         text+= "「/alive」看看bot是否在线\n"
         text+= "「/setch」将本频道设置为日志频道 (执行后才会开始监看)\n"
@@ -100,38 +70,42 @@ async def help(msg:Message,*arg):
         await msg.reply(cm)
     except Exception as result:
         _log.exception(f"Err in help")
-        await msg.reply(f"ERR! [{GetTime()}] help - {result}")
+        cm = await get_card_msg(f"ERR! [{get_time()}] help",err_card=True)
+        await msg.reply(cm)
 
 # 设置日志频道
 @bot.command(name='setch',case_sensitive=False)
 async def set_channel(msg:Message,*arg):
     try:
-        logMsg(msg)
-        global LinkLog,LinkConf
-        # 不在内，则创建键值
-        if msg.ctx.guild.id not in LinkConf['set']:
-            LinkConf['set'][msg.ctx.guild.id] = {'log_ch':'','ign_ch':[]}
-        # 设置当前频道为通知频道
-        LinkConf['set'][msg.ctx.guild.id]['log_ch'] = msg.ctx.channel.id
-        text = f"已将当前频道设置为 LinkGuard 的日志频道\n"
-        text+= f"频道信息：(chn){msg.ctx.channel.id}(chn)\n"
-        text+= f"频道ID：{msg.ctx.channel.id}"
+        log_msg(msg)
+        global LinkLog,LinkConf,SetCmdLock
+        async with SetCmdLock: # 上锁
+            # 不在内，则创建键值
+            if msg.ctx.guild.id not in LinkConf['set']:
+                LinkConf['set'][msg.ctx.guild.id] = {'log_ch':'','ign_ch':[]}
+            # 设置当前频道为通知频道
+            LinkConf['set'][msg.ctx.guild.id]['log_ch'] = msg.ctx.channel.id
+
+        # 发送消息
+        text = f"频道信息：(chn){msg.ctx.channel.id}(chn)\n"
+        text+= f"频道ID：  {msg.ctx.channel.id}"
+        cm = await get_card_msg(text,header_text="已将当前频道设置为 LinkGuard 的日志频道")
         cm = CardMessage(Card(Module.Section(Element.Text(text,Types.Text.KMD))))
         await msg.reply(cm)
         # 写入文件
         await write_link_conf()
         _log.info(f"[setch] G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
-        err_str=f"ERR! [{GetTime()}] setch - {result}"
         _log.exception(f"Err in setch")
-        await msg.reply(err_str)
-        await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
+        cm = await get_card_msg(f"ERR! [{get_time()}] setch",err_card=True)
+        await msg.reply(cm)
+        await bot.client.send(debug_ch,cm)#发送错误信息到指定频道
 
 # 忽略某个频道
 @bot.command(name='ignch',case_sensitive=False)
 async def ignore_channel(msg:Message,*arg):
     try:
-        logMsg(msg)
+        log_msg(msg)
         global LinkLog,LinkConf
         gid = msg.ctx.guild.id
         chid = msg.ctx.channel.id
@@ -141,46 +115,49 @@ async def ignore_channel(msg:Message,*arg):
         # 如果文字频道id不在ign里面，则追加
         if chid not in LinkConf['set'][gid]['ign_ch']:
             LinkConf['set'][gid]['ign_ch'].append(chid)
-        text = f"已将当前频道从 LinkGuard 的监看中忽略\n"
-        text+= f"频道信息：(chn){msg.ctx.channel.id}(chn)\n"
+        # 构造卡片
+        text = f"频道信息：(chn){msg.ctx.channel.id}(chn)\n"
         text+= f"频道ID：{msg.ctx.channel.id}"
-        cm = CardMessage(Card(Module.Section(Element.Text(text,Types.Text.KMD))))
+        cm = await get_card_msg(text,header_text="已将当前频道从 LinkGuard 的监看中忽略")
         await msg.reply(cm)
         # 写入文件
         await write_link_conf()
         _log.info(f"[ignch] G:{msg.ctx.guild.id} C:{msg.ctx.channel.id}")
     except Exception as result:
-        err_str=f"ERR! [{GetTime()}] ignch - {result}"
         _log.exception(f"Err in ignch")
-        await msg.reply(err_str)
-        await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
+        cm = await get_card_msg(f"ERR! [{get_time()}] ignch",err_card=True)
+        await msg.reply(cm)
+        await bot.client.send(debug_ch,cm)#发送错误信息到指定频道
 
 @bot.command(name='clear',case_sensitive=False)
 async def clear_setting(msg:Message,*arg):
     try:
-        logMsg(msg)
+        log_msg(msg)
         global LinkLog,LinkConf
         gid = msg.ctx.guild.id
         if gid not in LinkConf['set']:
-            await msg.reply(f"请先使用「/setch」命令设置日志频道，详见「/lgh」帮助命令")
-            return
+            text = f"本频道并没有配置日志频道，机器人尚未启用\n可使用「/setch」命令设置日志频道\n详见「/lgh」帮助命令"
+            cm = await get_card_msg(text)
+            return await msg.reply(cm)
+            
         # 删除键值
         del LinkConf['set'][gid]
-        cm = CardMessage(Card(Module.Section(Element.Text("已清除本服务器的设置",Types.Text.KMD))))
+        cm = CardMessage(Card(Module.Section(Element.Text("已清除本服务器的监听设置",Types.Text.KMD))))
         await msg.reply(cm)
         # 写入文件
         await write_link_conf()
         _log.info(f"[clear] G:{msg.ctx.guild.id}")
     except Exception as result:
         _log.exception(f"Err in clear")
-        err_str=f"ERR! [{GetTime()}] clear - {result}"
-        await msg.reply(err_str)
-        await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
+        cm = await get_card_msg(f"ERR! [{get_time()}] clear",err_card=True)
+        await msg.reply(cm)
+        await bot.client.send(debug_ch,cm)#发送错误信息到指定频道
 
 #####################################################################################
 
-# 写入日志
-async def write_log(gid:str,usrid:str,ret:str):
+
+async def log_invite_code(gid:str,usrid:str,ret:str):
+    """将邀请码写入日志"""
     global LinkLog
     # 新建服务器键值
     if gid not in LinkLog['data']:
@@ -193,34 +170,30 @@ async def write_log(gid:str,usrid:str,ret:str):
     # 写入文件
     await write_link_log()
     _log.info(f"G:{gid} = Au:{usrid} = write_log")
-    logFlush() # 刷缓冲区
+    log_flush() # 刷缓冲区
 
-# 判断邀请链接的api
 async def check_invites(code:str):
+    """判断邀请链接的api"""
     url = kook+'/api/v2/invites/' + code
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             ret = json.loads(await response.text())
             return ret
 
-# 发送通知
+
 async def send_log(gid:str,usrid:str,usrname:str,code:str,ret:str):
+    """发送通知到日志频道"""
     text= f"用户id: {usrid}\n昵称: {usrname}\n"
     text+=f"该用户发送的邀请码: {code}\n"
     text+=f"```\n{ret}\n```"
-    cm = CardMessage()
-    c = Card(
-        Module.Header(f"[{GetTime()}] LinkGuard"),
-        Module.Divider(),
-        Module.Section(Element.Text(text,Types.Text.KMD))
-    )
-    cm.append(c)
+    cm = await get_card_msg(text,header_text=f"[{get_time()}] LinkGuard")
     ch = await bot.client.fetch_public_channel(LinkConf['set'][gid]['log_ch'])
     await bot.client.send(ch,cm)
 
-# 监看url是否为当前频道
+
 async def invite_ck(msg:Message,code: str):
-    """Return Value:
+    """监看url是否为当前频道
+    Return Value:
     - True: not same guild_id
     - False: is same guild_id
     """
@@ -236,7 +209,7 @@ async def invite_ck(msg:Message,code: str):
         # 判断是否为当前服务器
         ret = await check_invites(code)
         if ret['guild']['id'] != gid:
-            await write_log(gid,usrid,ret['guild'])  # 写入日志
+            await log_invite_code(gid,usrid,ret['guild'])  # 写入日志
             await send_log(gid,usrid,usrname,code,ret['guild'])  # 发送通知
             _log.info(f"G:{gid} C:{chid} Au:{usrid}\n[ret] {code} : {ret['guild']}")
             return True # 不是本服务器的邀请链接，返回true
@@ -250,9 +223,9 @@ async def invite_ck(msg:Message,code: str):
         raise result
 
 
-# 监看本频道的邀请链接
 @bot.on_message()
 async def link_guard(msg: Message):
+    """监看本频道的邀请链接"""
     try:
         # 是私聊，直接退出
         if isinstance(msg, PrivateMessage):
@@ -263,39 +236,45 @@ async def link_guard(msg: Message):
         text = msg.content 
         # 判断消息里面有没有邀请链接
         link_index = text.find('https://kook.top/')  #返回子串开头的下标
-        if link_index != -1: # 有
-            code = text[link_index + 17:link_index + 23] # 取出邀请链接的code
-            ret = await invite_ck(msg,code) # 检查是否为当前服务器
-            if ret: # 不是本服务器的邀请链接
-                await msg.reply(f"(met){msg.author_id}(met) 请不要发送其他服务器的邀请链接！")
-                await msg.delete() # 删除邀请链接消息
-                _log.info(f"G:{msg.ctx.guild.id} C:{msg.ctx.channel.id} Au:{msg.author_id} | inform & msg.delete")
+        if link_index == -1: # 没有，直接退出
+            return
+        # 取出邀请链接的code
+        code = text[link_index + 17:link_index + 23] 
+        ret = await invite_ck(msg,code) # 检查是否为当前服务器
+        if ret: # 不是本服务器的邀请链接
+            card_text = f"(met){msg.author_id}(met)\n请勿发送其他服务器的邀请链接！"
+            cm = CardMessage(Card(Module.Section(Element.Text(card_text,Types.Text.KMD))))
+            await msg.reply(cm) 
+            await msg.delete() # 删除邀请链接消息
+            _log.info(f"G:{msg.ctx.guild.id} C:{msg.ctx.channel.id} Au:{msg.author_id} | inform & msg.delete")
+        
     except requester.HTTPRequester.APIRequestFailed as result:
         _log.exception(f"APIRequestFailed in link_guard")
         if "无删除权限" in str(result):
             ch = await bot.client.fetch_public_channel(LinkConf['set'][msg.ctx.guild.id]['log_ch'])
-            await bot.client.send(ch,f"请开启本服务器的删除文字权限")
+            await ch.send(await get_card_msg("【重要】请为机器人开启本服务器的 `消息管理` 权限"))
+            del LinkConf['set'][msg.ctx.guild.id] # 删除服务器键值
+            _log.warning(f"[APIRequestFailed] del G:{msg.ctx.guild.id} in set")
         elif "message/create" in str(result) and "没有权限" in str(result):
             pass
     except client_exceptions.ClientConnectorError as result:
         if 'kookapp.cn' in str(result):
-            _log.error(f"ERR! {str(result)}")
-            return
+            return _log.error(f"ERR! {str(result)}")
         _log.exception(f"aiohttp Err in link_guard")
     except Exception as result:
-        err_str=f"ERR! [{GetTime()}] link_guard\n```\n{traceback.format_exc()}\n```"
+        err_str=f"ERR! [{get_time()}] link_guard\n```\n{traceback.format_exc()}\n```"
         _log.exception("Err in link_guard")
-        await bot.client.send(debug_ch,err_str)#发送错误信息到指定频道
+        await bot.client.send(debug_ch,await get_card_msg(err_str))#发送错误信息到指定频道
 
 
 #############################################################################
 
 # 开机任务
-@bot.task.add_date()
-async def startup_task():
-    global debug_ch
+@bot.on_startup
+async def startup_task(b:Bot):
     try:
-        # 暴力测试是否有data键值
+        global debug_ch
+        # 暴力测试是否有data键值，没有是有问题的（file init失败）
         assert('data' in LinkLog)
         assert('set' in LinkConf)
         # 获取debug频道
@@ -312,13 +291,13 @@ async def botmarket():
     headers = {'uuid': '1d266c78-30b2-4299-b470-df0441862711'}
     async with aiohttp.ClientSession() as session:
         await session.post(api, headers=headers)
-# 定时写文件
-@bot.task.add_interval(minutes=5)
+# 定时写文件，因为很多地方都写了，所以这里只需要10分钟执行一次
+@bot.task.add_interval(minutes=10)
 async def save_log_file_task():
     await write_link_log(log_info="[BOT.TASK]")
 
 # 开机 （如果是主文件就开机）
 if __name__ == '__main__':
     # 开机的时候打印一次时间，记录开启时间
-    _log.info(f"[BOT] Start at {GetTime()}")
+    _log.info(f"[BOT] Start at {get_time()}")
     bot.run()
