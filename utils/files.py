@@ -1,7 +1,7 @@
 import os
 import json
 import asyncio
-from .mylog import _log
+from .myLog import _log
 
 
 FlieSaveLock = asyncio.Lock()

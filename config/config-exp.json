@@ -4,6 +4,8 @@
     "encrypt":"bot webhook encrypt token",
     "webhook_port":40002,
     "ws":true,
-    "debug_ch":"bot debug msg send channel",
-    "notice":"在帮助命令中包含的公告信息"
+    "debug_ch":"bot debug channel id 发送日志信息的文字频道id",
+    "notice":"在帮助命令中包含的公告信息",
+    "sqlite_enable":false,
+    "如果想使用sqlite3数据库来保存违规发送的验证码，请将link_log_sql设置为true。请注意，部分系统上的python可能由于没有正确安装sqlite-devel而无法使用sqlite3库":1
 }

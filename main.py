@@ -9,7 +9,8 @@ from khl.card import Card,CardMessage,Types,Module,Element
 from aiohttp import client_exceptions
 
 from utils.files import *
-from utils.mylog import get_time,log_flush,log_msg,_log
+from utils.myLog import get_time,log_flush,log_msg,_log
+from utils.dataLog import log_invite_code 
 
 # 用读取来的 config 初始化 bot
 bot = Bot(token=config['token']) # websocket
@@ -156,22 +157,6 @@ async def clear_setting(msg:Message,*arg):
 #####################################################################################
 
 
-async def log_invite_code(gid:str,usrid:str,ret:str):
-    """将邀请码写入日志"""
-    global LinkLog
-    # 新建服务器键值
-    if gid not in LinkLog['data']:
-        LinkLog['data'][gid] = {}
-    # 新建用户键值
-    if usrid not in LinkLog['data'][gid]:
-        LinkLog['data'][gid][usrid] = []
-    # 插入返回值
-    LinkLog['data'][gid][usrid].append(ret)
-    # 写入文件
-    await write_link_log()
-    _log.info(f"G:{gid} = Au:{usrid} = write_log")
-    log_flush() # 刷缓冲区
-
 async def check_invites(code:str):
     """判断邀请链接的api"""
     url = kook+'/api/v2/invites/' + code
@@ -209,7 +194,7 @@ async def invite_ck(msg:Message,code: str):
         # 判断是否为当前服务器
         ret = await check_invites(code)
         if ret['guild']['id'] != gid:
-            await log_invite_code(gid,usrid,ret['guild'])  # 写入日志
+            await log_invite_code(gid,usrid,code,ret['guild'])  # 写入日志
             await send_log(gid,usrid,usrname,code,ret['guild'])  # 发送通知
             _log.info(f"G:{gid} C:{chid} Au:{usrid}\n[ret] {code} : {ret['guild']}")
             return True # 不是本服务器的邀请链接，返回true
