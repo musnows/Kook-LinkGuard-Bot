@@ -47,13 +47,13 @@ python3 main.py
 
 ### 一键部署到replit
 
-注册[replit](https://replit.com/)，
+注册[replit](https://replit.com/)，创建一个Python的repl，随后进入`shell`粘贴如下命令
 
 ```
 git clone https://github.com/musnows/Kook-LinkGuard-Bot.git && mv -b Kook-LinkGuard-Bot/* ./ && mv -b Kook-LinkGuard-Bot/.[^.]* ./  && rm -rf Kook-LinkGuard-Bot && pip install -r requirements.txt
 ```
 
-克隆完成后，同样是修改`config/config.json`。随后点击上方绿色RUN按钮，即可运行bot。将右侧webview中出现的url填入kook的callback-url，即可上线机器人。
+克隆完成，加载好nix文件后，同样是修改`config/config.json`的相字段。随后点击上方绿色RUN按钮，即可运行bot。将右侧webview中出现的url填入kook的callback-url，即可上线机器人。
 
 更多教程信息详见 [Kook-Ticket-Bot/wiki](https://github.com/musnows/Kook-Ticket-Bot/wiki)，基本步骤相同，repl保活工作二者都需要做。
 
