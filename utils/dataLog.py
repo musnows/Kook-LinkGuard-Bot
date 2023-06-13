@@ -9,7 +9,12 @@ if SQLITE_ENABLE:
     import sqlite3
     DB_NAME = 'config/linkLog.db'
     """数据库名"""
-    LOG_TB_CREATE = "CREATE TABLE IF NOT EXISTS link_log(guild_id TEXT NOT NULL,user_id TEXT NOT NULL,invite_code TEXT NOT NULL,invite_info TEXT NOT NULL);"
+    LOG_TB_CREATE = "CREATE TABLE IF NOT EXISTS link_log(\
+                            guild_id TEXT NOT NULL,\
+                            user_id TEXT NOT NULL,\
+                            invite_code TEXT NOT NULL,\
+                            invite_info TEXT NOT NULL,\
+                            insert_time TIMESTAMP DEFAULT (datetime('now', '+8 hours')));"
     # 先创建数据库中的表
     db = sqlite3.connect(DB_NAME)
     query = db.cursor()
@@ -23,9 +28,9 @@ if SQLITE_ENABLE:
         db = sqlite3.connect(DB_NAME)
         query = db.cursor()
         json_str = fr"{json.dumps(ret)}" # 原始字符串
-        sql = f"INSERT INTO link_log values ('{gid}','{usrid}','{invite_code}','{json_str}');"
+        sql = f"INSERT INTO link_log (guild_id,user_id,invite_code,invite_info) values (?,?,?,?);"
         _log.info(f"G:{gid} | Au:{usrid} | sql: {sql}")
-        query.execute(sql) # 需要执行的sql命令
+        query.execute(sql,(gid,usrid,invite_code,json_str)) # 需要执行的sql命令
         db.commit() # 执行
         db.close() # 关闭
         _log.info(f"G:{gid} | Au:{usrid} | sqlite3 log | {ret['id']}")
