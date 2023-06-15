@@ -1,5 +1,9 @@
-!config/config-exp.json
-# 忽略配置文件
-config/
+!config/config-exp.py
+# 忽略配置文件和数据文件
+config.py
+*.db
+*.json
+
+# 日志文件和缓存
 __pycache__/
 *.log

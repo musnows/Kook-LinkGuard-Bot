@@ -22,7 +22,7 @@ app.add_routes(routes)
 
 if __name__ == '__main__':
     _log.info(f"[BOT] Start in replit {get_time()}")
-    if config["ws"]: # websocket 才需要同时运行web app和机器人
+    if config.USING_WS: # websocket 才需要同时运行web app和机器人
         HOST,PORT = '0.0.0.0',14725
         asyncio.get_event_loop().run_until_complete(
             asyncio.gather(web._run_app(app, host=HOST, port=PORT), bot.start()))
