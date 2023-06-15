@@ -1,4 +1,5 @@
 # encoding: utf-8
+import os
 import json
 import time
 import sqlite3
@@ -115,6 +116,8 @@ async def remove_link_conf(gid:str):
 
 async def link_conf_transfer(path = "config/linkconf.json"):
     """使用这个函数，将旧版本json的配置文件转为新版本sqlite数据文件"""
+    if not os.path.exists(path):
+        return
     with open(path, 'r', encoding='utf-8') as f:
         link_conf = json.load(f)
     # 已经转换过了
