@@ -70,10 +70,8 @@ async def log_link_conf(gid:str,usrid:str,log_ch:str,ign_ch=[],wth_ch=[]):
             sret = query.execute(SELECT_LINK_CONF,(gid,))
             if not sret.fetchall(): # 没有找到
                 query.execute(INSERT_LINK_CONF,(gid,usrid,log_ch,json.dumps(ign_ch),json.dumps(wth_ch),time.time()))
-                print('inset')
             else: # 找到了
                 query.execute(UPDATE_LINK_CONF,(usrid,log_ch,json.dumps(ign_ch),json.dumps(wth_ch),time.time(),gid))
-                print('upd')
                 
             db.commit() # 执行sql
         _log.info(f"G:{gid} | Au:{usrid} | {log_ch} | sqlite3 conf")

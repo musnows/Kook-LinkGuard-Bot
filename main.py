@@ -186,7 +186,6 @@ async def invite_ck(msg:Message,code: str,conf_info:dict):
     - True: not same guild_id
     - False: is same guild_id
     """
-    print(conf_info)
     gid = msg.ctx.guild.id    # 服务器id
     chid = msg.ctx.channel.id # 文字频道id
     usrid = msg.author_id     # 发送链接的用户id
