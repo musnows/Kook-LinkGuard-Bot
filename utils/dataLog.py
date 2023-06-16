@@ -30,7 +30,13 @@ LINK_CONF_CREATE = "CREATE TABLE IF NOT EXISTS link_conf(\
                         update_time TIMESTAMP DEFAULT (datetime('now', '+8 hours')),\
                         insert_time TIMESTAMP DEFAULT (datetime('now', '+8 hours')));"
 """监看配置表"""
-
+LINK_INFO_CREATE = "CREATE TABLE IF NOT EXISTS link_inform(\
+                        guild_id TEXT NOT NULL UNIQUE,\
+                        user_id TEXT NOT NULL,\
+                        inform TEXT NOT NULL,\
+                        update_time TIMESTAMP DEFAULT (datetime('now', '+8 hours')),\
+                        insert_time TIMESTAMP DEFAULT (datetime('now', '+8 hours')));"
+"""服务器监看配置表"""
 
 INSERT_LINK_LOG = "INSERT INTO link_log (guild_id,user_id,channel_id,invite_code,invite_info) values (?,?,?,?,?);"
 """插入link_log表"""
@@ -41,7 +47,16 @@ UPDATE_LINK_CONF = "UPDATE link_conf SET user_id = ?, log_ch = ?, ign_ch = ?, wt
 SELECT_LINK_CONF = "select * from link_conf where guild_id = ?;"
 """搜索link_conf表"""
 DROP_LINK_CONF = "drop from link_conf where guild_id = ?;"
-"""删除服务器键值"""
+"""删除link_conf服务器键值"""
+DROP_LINK_INFO = "drop from link_inform where guild_id = ?;"
+"""删除link_inform服务器键值"""
+INSERT_LINK_INFO = "INSERT INTO link_inform (guild_id,user_id,inform) values (?,?,?);"
+"""插入link_inform表"""
+UPDATE_LINK_INFO = "UPDATE link_inform SET user_id = ?, inform = ?, update_time = ? WHERE guild_id = ?;"
+"""更新link_inform表"""
+SELECT_LINK_INFO = "select * from link_inform where guild_id = ?;"
+"""搜索link_inform表"""
+
 
 # 先创建数据库中的表
 link_db = sqlite3.connect(DB_NAME)
@@ -75,9 +90,24 @@ async def log_link_conf(gid:str,usrid:str,log_ch:str,ign_ch=[],wth_ch=[]):
                 query.execute(UPDATE_LINK_CONF,(usrid,log_ch,json.dumps(ign_ch),json.dumps(wth_ch),time.time(),gid))
                 
             db.commit() # 执行sql
-        _log.info(f"G:{gid} | Au:{usrid} | {log_ch} | sqlite3 conf")
+        _log.info(f"G:{gid} | Au:{usrid} | C:{log_ch} | sqlite3 conf")
         
     
+async def log_link_inform(gid:str,usrid:str,inform:str):
+    """服务器id，用户id，提醒文字(提前检查合法性再传入，)"""
+    global DBSqlLock
+    async with DBSqlLock:
+        with sqlite3.connect(DB_NAME) as db:
+            query = db.cursor()
+            sret = query.execute(SELECT_LINK_INFO,(gid,))
+            if not sret.fetchall(): # 没有找到
+                query.execute(SELECT_LINK_INFO,(gid,usrid,json.dumps(inform),time.time()))
+            else: # 找到了
+                query.execute(SELECT_LINK_INFO,(usrid,json.dumps(inform),time.time(),gid))
+        
+        db.commit() # 执行sql
+        _log.info(f"G:{gid} | Au:{usrid} | sqlite3 link_inform")
+
 async def select_link_conf(gid:str):
     """服务器id查询，返回结果为dict;空dict代表没找到"""
     global DBSqlLock
@@ -99,8 +129,28 @@ async def select_link_conf(gid:str):
                 'update_time':info[5],
                 'insert_time':info[6]
             }
-    # 走到这里其实是有问题的
-    return {}
+
+
+async def select_link_inform(gid:str):
+    """服务器id查询，返回结果为dict;空dict代表没找到"""
+    global DBSqlLock
+    async with DBSqlLock:
+        with sqlite3.connect(DB_NAME) as db:
+            query = db.cursor()
+            sret = query.execute(SELECT_LINK_INFO,(gid,))
+            sret_list = sret.fetchall()
+            if not sret_list: # 没有找到
+                return {}
+            
+            info = sret_list[0]
+            return {
+                'guild_id':info[0],
+                'user_id':info[1],
+                'inform':info[2],
+                'update_time':info[3],
+                'insert_time':info[4]
+            }
+
 
 
 async def remove_link_conf(gid:str):
@@ -109,7 +159,7 @@ async def remove_link_conf(gid:str):
     async with DBSqlLock:
         with sqlite3.connect(DB_NAME) as db:
             query = db.cursor()
-            query.execute(DROP_LINK_CONF,(gid))
+            query.execute(DROP_LINK_CONF,(gid,))
             db.commit() # 执行
 
 
