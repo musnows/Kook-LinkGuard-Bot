@@ -5,7 +5,7 @@ import asyncio
 import traceback
 import os
 
-from khl import Bot,Cert, Message,PrivateMessage,requester
+from khl import Bot,Cert, Message,PrivateMessage,requester,MessageTypes
 from khl.card import Card,CardMessage,Types,Module,Element
 from aiohttp import client_exceptions
 
@@ -102,6 +102,52 @@ async def set_channel(msg:Message,*arg):
         cm = await get_card_msg(f"ERR! [{get_time()}] setch",err_card=True)
         await msg.reply(cm)
         await bot.client.send(debug_ch,cm)#发送错误信息到指定频道
+
+async def card_msg_replace(text:str):
+    """修改转义字符"""
+    text = text.replace('```auto','')
+    text = text.replace('```','')
+    # text = text.replace('\\(','(')
+    # text = text.replace('\\)',')')
+    # text = text.replace('\\[','[')
+    # text = text.replace('\\]',']')
+    text = text.replace('plain-text','kmarkdown') # 一律使用kmd
+    return text
+
+
+@bot.command(name='setifo')
+async def set_inform_text_cmd(msg:Message,*arg):
+    try:
+        log_msg(msg)
+        if not arg:
+            return await msg.reply(await get_card_msg('请依照帮助命令，正确提供合格的卡片消息json'))
+        if 'button' in msg.content:
+            _log.warning(f"'button' in content | G:{msg.ctx.guild.id} | Au:{msg.author_id}")
+            return await msg.reply(await get_card_msg('卡片消息内不能包含按钮！'))
+        # 测试卡片消息
+        cm_text = msg.content.replace('/setifo','')
+        try:
+            cm_text = await card_msg_replace(cm_text)
+            send_text = cm_text
+            if r'{met}' in cm_text: # at用户
+                send_text = cm_text.replace(r'{met}',f'(met){msg.author_id}(met)')
+            await msg.reply(send_text,use_quote=False,type=MessageTypes.CARD)  # 卡片消息发送尝试
+        except Exception as result:
+            if 'json' not in str(result):
+                raise result
+            _log.warning(f"invaild json | G:{msg.ctx.guild.id} | Au:{msg.author_id}")
+            return await msg.reply(await get_card_msg("卡片消息格式错误，无法正常发送",err_card=True))
+
+        # 通过测试，记录
+        await dataLog.log_link_inform(msg.ctx.guild.id,msg.author_id,cm_text)
+        # 发送回复
+        await msg.reply(await get_card_msg("撤回回复自定义成功，示例消息已在上方发送！"))
+        _log.info(f"[setifo] G:{msg.ctx.guild.id} Au:{msg.author_id}")
+    except Exception as result:
+        _log.exception(f"Err in setifo | G:{msg.ctx.guild.id} | Au:{msg.author_id}")
+        cm = await get_card_msg(f"ERR! [{get_time()}] setch",err_card=True)
+        await msg.reply(cm)
+        # await bot.client.send(debug_ch,cm)#发送错误信息到指定频道
 
 # 忽略某个频道
 @bot.command(name='ignch',case_sensitive=False)

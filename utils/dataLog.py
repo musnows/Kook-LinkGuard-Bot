@@ -63,6 +63,7 @@ link_db = sqlite3.connect(DB_NAME)
 query = link_db.cursor()
 query.execute(LINK_LOG_CREATE)
 query.execute(LINK_CONF_CREATE)
+query.execute(LINK_INFO_CREATE)
 link_db.commit() # 执行
 link_db.close() # 关闭数据库（写入文件）
 
@@ -101,9 +102,9 @@ async def log_link_inform(gid:str,usrid:str,inform:str):
             query = db.cursor()
             sret = query.execute(SELECT_LINK_INFO,(gid,))
             if not sret.fetchall(): # 没有找到
-                query.execute(SELECT_LINK_INFO,(gid,usrid,json.dumps(inform),time.time()))
+                query.execute(INSERT_LINK_INFO,(gid,usrid,json.dumps(inform)))
             else: # 找到了
-                query.execute(SELECT_LINK_INFO,(usrid,json.dumps(inform),time.time(),gid))
+                query.execute(UPDATE_LINK_INFO,(usrid,json.dumps(inform),time.time(),gid))
         
         db.commit() # 执行sql
         _log.info(f"G:{gid} | Au:{usrid} | sqlite3 link_inform")
