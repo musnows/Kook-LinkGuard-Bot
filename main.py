@@ -10,8 +10,8 @@ from khl.card import Card,CardMessage,Types,Module,Element
 from aiohttp import client_exceptions
 
 from config import config
+from utils import dataLog
 from utils.myLog import get_time,log_msg,_log
-from utils.dataLog import log_invite_code,log_link_conf,select_link_conf,remove_link_conf,link_conf_transfer
 
 # 用读取来的 config 初始化 bot，字段对应即可
 bot = Bot(token=config.BOT_TOKEN)  # websocket
@@ -90,7 +90,7 @@ async def set_channel(msg:Message,*arg):
     try:
         log_msg(msg)
         # 记录配置
-        await log_link_conf(msg.ctx.guild.id,msg.author_id,msg.ctx.channel.id)
+        await dataLog.log_link_conf(msg.ctx.guild.id,msg.author_id,msg.ctx.channel.id)
         # 发送消息
         text = f"频道信息：(chn){msg.ctx.channel.id}(chn)\n"
         text+= f"频道ID：  {msg.ctx.channel.id}"
@@ -111,7 +111,7 @@ async def ignore_channel(msg:Message,*arg):
         gid = msg.ctx.guild.id
         chid = msg.ctx.channel.id
         # 1.先看看是否已有配置
-        conf_ret = await select_link_conf(gid)
+        conf_ret = await dataLog.select_link_conf(gid)
         if conf_ret == {}: # 空dict代表无效
             return await msg.reply(await get_card_msg("请先使用「/setch」命令设置日志频道，详见「/lgh」帮助命令"))
             
@@ -119,7 +119,7 @@ async def ignore_channel(msg:Message,*arg):
         if chid not in conf_ret['ign_ch']:
             conf_ret['ign_ch'].append(chid)
         # 3.写入数据库
-        await log_link_conf(msg.ctx.guild.id,msg.author_id,conf_ret['log_ch'],conf_ret['ign_ch'])
+        await dataLog.log_link_conf(msg.ctx.guild.id,msg.author_id,conf_ret['log_ch'],conf_ret['ign_ch'])
         # 4.构造卡片并回复用户
         text = f"忽略频道：(chn){msg.ctx.channel.id}(chn)\n"
         text+= f"频道ID：{msg.ctx.channel.id}"
@@ -137,7 +137,7 @@ async def clear_setting(msg:Message,*arg):
     try:
         log_msg(msg)
         gid = msg.ctx.guild.id
-        conf_ret = await select_link_conf(gid)
+        conf_ret = await dataLog.select_link_conf(gid)
         if conf_ret == {}: # 空dict代表无效
             text = "本频道并没有配置日志频道，机器人尚未启用\n可使用「/setch」命令设置日志频道\n详见「/lgh」帮助命令"
             return await msg.reply(await get_card_msg(text))
@@ -146,7 +146,7 @@ async def clear_setting(msg:Message,*arg):
         text = f"监听频道信息：(chn){ch_id}(chn)\n"
         text+= f"监听频道ID：  {ch_id}"
         # 删除键值
-        await remove_link_conf(gid)
+        await dataLog.remove_link_conf(gid)
         # 发送信息
         cm = await get_card_msg(text,header_text="已清除本服务器的监听设置")
         await msg.reply(cm)
@@ -198,7 +198,7 @@ async def invite_ck(msg:Message,code: str,conf_info:dict):
         # 判断是否为当前服务器
         api_ret = await check_invites(code)
         if api_ret['guild']['id'] != gid:
-            await log_invite_code(gid,usrid,chid,code,api_ret['guild'])  # 写入日志
+            await dataLog.log_invite_code(gid,usrid,chid,code,api_ret['guild'])  # 写入日志
             await send_log(gid,usrid,usrname,code,api_ret['guild'],conf_info['log_ch'])  # 发送通知
             _log.info(f"G:{gid} C:{chid} Au:{usrid}\n[ret] code:{code} | {api_ret['guild']}") # 日志
             return True # 不是本服务器的邀请链接，返回true
@@ -223,7 +223,7 @@ async def link_guard(msg: Message):
             return
         # 2.查询配置
         gid = msg.ctx.guild.id # 服务器id
-        conf_ret = await select_link_conf(gid) # 查询
+        conf_ret = await dataLog.select_link_conf(gid) # 查询
         if conf_ret == {}:
             return # 必须要配置日志频道，才会启用
         log_ch_id = conf_ret['log_ch'] # 日志频道
@@ -247,7 +247,7 @@ async def link_guard(msg: Message):
         if "无删除权限" in str(result):
             ch = await bot.client.fetch_public_channel(log_ch_id)
             await ch.send(await get_card_msg("【重要】请为机器人开启本服务器的 `消息管理` 权限"))
-            await remove_link_conf(gid) # 删除服务器键值
+            await dataLog.remove_link_conf(gid) # 删除服务器键值
             _log.warning(f"[APIRequestFailed] del G:{gid} in set")
         elif "message/create" in str(result) and "没有权限" in str(result):
             pass
@@ -271,7 +271,7 @@ async def startup_task(b:Bot):
         # 获取debug频道
         debug_ch = await bot.client.fetch_public_channel(config.DEBUG_CH)
         _log.info("[BOT.START] fetch debug channel success")
-        await link_conf_transfer()
+        await dataLog.link_conf_transfer()
     except:
         _log.exception(f"[BOT.START] ERR!")
         os.abort()
