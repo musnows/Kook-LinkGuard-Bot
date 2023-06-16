@@ -64,7 +64,7 @@ async def alive_check(msg:Message,*arg):
 async def help(msg:Message,*arg):
     try:
         log_msg(msg)
-        text = config.NOTICE_INFO
+        text = config.NOTICE_INFO + "\n" # 自带一个回车
         text+= "「/alive」看看bot是否在线\n"
         text+= "「/setch」将本频道设置为日志频道 (执行后才会开始监看)\n"
         text+= "「/setifo」自定义撤回提示消息 [教程](https://blog.musnow.top/posts/1370917284/?f=kook)\n"
@@ -76,7 +76,7 @@ async def help(msg:Message,*arg):
             Module.Header(f"LinkGuard 的帮助命令"),
             Module.Divider(),
             Module.Section(Element.Text(text,Types.Text.KMD)),
-            Module.Container(Element.Image(src="https://img.kookapp.cn/assets/2023-04/T56YuWvvuQ0hm095.png"))
+            Module.Container(Element.Image(src="https://img.kookapp.cn/assets/2023-06/424QcWiOFu0ht0bp.png"))
         )
         cm.append(c)
         await msg.reply(cm)
