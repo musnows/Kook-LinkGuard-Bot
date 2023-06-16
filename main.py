@@ -198,7 +198,7 @@ async def invite_ck(msg:Message,code: str,conf_info:dict):
         # 判断是否为当前服务器
         api_ret = await check_invites(code)
         if api_ret['guild']['id'] != gid:
-            await log_invite_code(gid,usrid,code,api_ret['guild'])  # 写入日志
+            await log_invite_code(gid,usrid,chid,code,api_ret['guild'])  # 写入日志
             await send_log(gid,usrid,usrname,code,api_ret['guild'],conf_info['log_ch'])  # 发送通知
             _log.info(f"G:{gid} C:{chid} Au:{usrid}\n[ret] code:{code} | {api_ret['guild']}") # 日志
             return True # 不是本服务器的邀请链接，返回true

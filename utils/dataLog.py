@@ -16,6 +16,7 @@ DB_NAME = 'config/linklog.db'
 LINK_LOG_CREATE = "CREATE TABLE IF NOT EXISTS link_log(\
                         guild_id TEXT NOT NULL,\
                         user_id TEXT NOT NULL,\
+                        channel_id TEXT NOT NULL DEFAULT '',\
                         invite_code TEXT NOT NULL,\
                         invite_info TEXT NOT NULL,\
                         insert_time TIMESTAMP DEFAULT (datetime('now', '+8 hours')));"
@@ -31,7 +32,7 @@ LINK_CONF_CREATE = "CREATE TABLE IF NOT EXISTS link_conf(\
 """监看配置表"""
 
 
-INSERT_LINK_LOG = "INSERT INTO link_log (guild_id,user_id,invite_code,invite_info) values (?,?,?,?);"
+INSERT_LINK_LOG = "INSERT INTO link_log (guild_id,user_id,channel_id,invite_code,invite_info) values (?,?,?,?,?);"
 """插入link_log表"""
 INSERT_LINK_CONF = "INSERT INTO link_conf (guild_id,user_id,log_ch,ign_ch,wth_ch,update_time) values (?,?,?,?,?,?);"
 """插入link_conf表"""
@@ -51,12 +52,12 @@ link_db.commit() # 执行
 link_db.close() # 关闭数据库（写入文件）
 
 
-async def log_invite_code(gid:str,usrid:str,invite_code:str,api_ret:dict):
-    """服务器id，用户id，和邀请码api返回值 ret['guild']"""
+async def log_invite_code(gid:str,usrid:str,chid:str,invite_code:str,api_ret:dict):
+    """服务器id，用户id，频道id，和邀请码api返回值 ret['guild']"""
     with sqlite3.connect(DB_NAME) as db:
         query = db.cursor()
         json_str = fr"{json.dumps(api_ret)}" # 原始字符串
-        query.execute(INSERT_LINK_LOG,(gid,usrid,invite_code,json_str)) # 需要执行的sql命令
+        query.execute(INSERT_LINK_LOG,(gid,usrid,chid,invite_code,json_str)) # 需要执行的sql命令
         db.commit() # 执行sql
         _log.info(f"G:{gid} | Au:{usrid} | {invite_code} | sqlite3 log")
 
