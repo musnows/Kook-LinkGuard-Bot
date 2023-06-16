@@ -102,9 +102,9 @@ async def log_link_inform(gid:str,usrid:str,inform:str):
             query = db.cursor()
             sret = query.execute(SELECT_LINK_INFO,(gid,))
             if not sret.fetchall(): # 没有找到
-                query.execute(INSERT_LINK_INFO,(gid,usrid,json.dumps(inform)))
+                query.execute(INSERT_LINK_INFO,(gid,usrid,inform))
             else: # 找到了
-                query.execute(UPDATE_LINK_INFO,(usrid,json.dumps(inform),time.time(),gid))
+                query.execute(UPDATE_LINK_INFO,(usrid,inform,time.time(),gid))
         
         db.commit() # 执行sql
         _log.info(f"G:{gid} | Au:{usrid} | sqlite3 link_inform")

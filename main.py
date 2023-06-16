@@ -67,6 +67,7 @@ async def help(msg:Message,*arg):
         text = config.NOTICE_INFO
         text+= "「/alive」看看bot是否在线\n"
         text+= "「/setch」将本频道设置为日志频道 (执行后才会开始监看)\n"
+        text+= "「/setifo」自定义撤回提示消息 [教程](https://blog.musnow.top/posts/1370917284/?f=kook)\n"
         text+= "「/ignch」在监看中忽略本频道\n"
         text+= "「/clear」清除本服务器的设置\n"
         text+= " 出现其他频道链接时，机器人会提醒用户、删除该消息，并发送链接相关信息到日志频道"
@@ -215,9 +216,10 @@ async def check_invites(code:str):
             return ret
 
 
-async def send_log(gid:str,usrid:str,usrname:str,code:str,ret:str,log_ch_id:str):
+async def send_log(gid:str,chid:str,usrid:str,usrname:str,code:str,ret:str,log_ch_id:str):
     """发送通知到日志频道"""
-    text= f"用户id: {usrid}\n昵称: {usrname}\n"
+    text= f"用户id: {usrid}\n用户昵称: {usrname}\n"
+    text+=f"文字频道：(chn){chid}(chn)\n"
     text+=f"该用户发送的邀请码: {code}\n"
     text+=f"```\n{ret}\n```"
     cm = await get_card_msg(text,header_text=f"[{get_time()}] LinkGuard")
@@ -245,7 +247,7 @@ async def invite_ck(msg:Message,code: str,conf_info:dict):
         api_ret = await check_invites(code)
         if api_ret['guild']['id'] != gid:
             await dataLog.log_invite_code(gid,usrid,chid,code,api_ret['guild'])  # 写入日志
-            await send_log(gid,usrid,usrname,code,api_ret['guild'],conf_info['log_ch'])  # 发送通知
+            await send_log(gid,chid,usrid,usrname,code,api_ret['guild'],conf_info['log_ch'])  # 发送通知
             _log.info(f"G:{gid} C:{chid} Au:{usrid}\n[ret] code:{code} | {api_ret['guild']}") # 日志
             return True # 不是本服务器的邀请链接，返回true
         # 是本服务器返回false
@@ -262,7 +264,7 @@ async def invite_ck(msg:Message,code: str,conf_info:dict):
 async def link_guard(msg: Message):
     """监看本频道的邀请链接"""
     log_ch_id = config.DEBUG_CH
-    gid = "none"
+    gid,card_text = "none",'none'
     try:
         # 1.是私聊，直接退出
         if isinstance(msg, PrivateMessage):
@@ -283,9 +285,16 @@ async def link_guard(msg: Message):
         ret = await invite_ck(msg,code,conf_ret) # 检查是否为当前服务器
         if ret: # 不是本服务器的邀请链接
             card_text = f"(met){msg.author_id}(met)\n请勿发送其他服务器的邀请链接！"
-            cm = CardMessage(Card(Module.Section(Element.Text(card_text,Types.Text.KMD))))
-            await msg.reply(cm) # 发送提示
-            await msg.delete() # 删除邀请链接消息
+            # 判断是否有配置过个性化消息
+            info_set = await dataLog.select_link_inform(gid)
+            if info_set:
+                card_text = info_set['inform'].replace(r'{met}',f'(met){msg.author_id}(met)')
+                await msg.reply(card_text,type=MessageTypes.CARD)
+            else:
+                cm = CardMessage(Card(Module.Section(Element.Text(card_text,Types.Text.KMD))))
+                await msg.reply(cm) # 发送提示
+            # 删除邀请链接消息
+            await msg.delete() 
             _log.info(f"G:{gid} C:{msg.ctx.channel.id} Au:{msg.author_id} | inform & msg.delete")
         
     except requester.HTTPRequester.APIRequestFailed as result:
@@ -297,9 +306,11 @@ async def link_guard(msg: Message):
             _log.warning(f"[APIRequestFailed] del G:{gid} in set")
         elif "message/create" in str(result) and "没有权限" in str(result):
             pass
+        elif 'json' in str(result):
+            _log.info(f"[link_guard] card_text | {card_text}")
     except client_exceptions.ClientConnectorError as result:
         if 'kookapp.cn' in str(result):
-            return _log.error(f"ERR! {str(result)}")
+            return _log.warning(f"ERR! {str(result)}")
         _log.exception(f"aiohttp Err in link_guard| G:{gid}")
     except Exception as result:
         err_str=f"ERR! [{get_time()}] link_guard | G:{gid}\n```\n{traceback.format_exc()}\n```"
