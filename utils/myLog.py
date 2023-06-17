@@ -3,9 +3,10 @@ import logging # 采用logging来替换所有print
 from logging.handlers import RotatingFileHandler
 from datetime import datetime,timezone,timedelta
 from khl import Message,PrivateMessage
+from config.config import LOGGER_FILE_PATH
 
 LOGGER_NAME = "bot-log" # 日志对象名字，这个没啥用
-LOGGER_FILE = "bot.log" # 如果想修改log文件的名字和路径，修改此变量
+LOGGER_FILE = "bot.log" if LOGGER_FILE_PATH == '' else LOGGER_FILE_PATH
 """日志文件路径"""
 LOGGER_FILE_BYTES = 10*1024*1024
 """日志文件达到多少B时分割,10*1024*1024是10mb"""

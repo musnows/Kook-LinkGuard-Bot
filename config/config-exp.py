@@ -19,6 +19,11 @@ USING_WS = False
 - False 用webhook
 - True  用websocket 
 """
+LOGGER_FILE_PATH = "bot.log"
+"""
+日志文件路径，默认是main.py同级路径下的bot.log。
+如果你不知道这个是什么，请不要随意修改
+"""
 
 # 2.日志频道ID和管理员用户ID
 #   各类id获取办法：kook设置-高级设置-打开开发者模式；
