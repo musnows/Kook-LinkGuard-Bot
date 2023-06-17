@@ -72,7 +72,7 @@ async def log_invite_code(gid:str,usrid:str,chid:str,invite_code:str,api_ret:dic
     """服务器id，用户id，频道id，和邀请码api返回值 ret['guild']"""
     with sqlite3.connect(DB_NAME) as db:
         query = db.cursor()
-        json_str = fr"{json.dumps(api_ret)}" # 原始字符串
+        json_str = fr"{json.dumps(api_ret,ensure_ascii=False)}" # 原始字符串
         query.execute(INSERT_LINK_LOG,(gid,usrid,chid,invite_code,json_str)) # 需要执行的sql命令
         db.commit() # 执行sql
         _log.info(f"G:{gid} | Au:{usrid} | {invite_code} | sqlite3 log")
