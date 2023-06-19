@@ -278,24 +278,32 @@ async def link_guard(msg: Message):
         # 3.判断消息里面有没有邀请链接
         text = msg.content  # 消息内容
         link_index = text.find('https://kook.top/') # 返回子串开头的下标
-        if link_index == -1: # 没有，直接退出
+        link_end_index = text.find('](') # 链接会以markdown的方式传入[url](url)
+        if link_index == -1: # 没有这个子串，代表没有邀请链接，直接退出
             return
         # 4.取出邀请链接的code
-        code = text[link_index + 17:link_index + 23] 
+        code = text[link_index + 17:link_index + 23] # 这里默认他是6位邀请链接，但出现过少于6个的情况
+        if link_end_index == -1: # 找不到代表传入的link格式不是md，尝试取6位并删除可能的超宽字符
+            code = code.replace(']','') # 少于6个会多出来一个]
+        else: # 传入的格式是kmd，直接从下标处取
+            code = text[link_index + 17:link_end_index]
+        
         ret = await invite_ck(msg,code,conf_ret) # 检查是否为当前服务器
-        if ret: # 不是本服务器的邀请链接
-            card_text = f"(met){msg.author_id}(met)\n请勿发送其他服务器的邀请链接！"
-            # 判断是否有配置过个性化消息
-            info_set = await dataLog.select_link_inform(gid)
-            if info_set:
-                card_text = info_set['inform'].replace(r'{met}',f'(met){msg.author_id}(met)')
-                await msg.reply(card_text,type=MessageTypes.CARD)
-            else:
-                cm = CardMessage(Card(Module.Section(Element.Text(card_text,Types.Text.KMD))))
-                await msg.reply(cm) # 发送提示
-            # 删除邀请链接消息
-            await msg.delete() 
-            _log.info(f"G:{gid} C:{msg.ctx.channel.id} Au:{msg.author_id} | inform & msg.delete")
+        if not ret: # 是本服务器的邀请链接，推出
+            return
+        # 不是本服务器的邀请链接
+        card_text = f"(met){msg.author_id}(met)\n请勿发送其他服务器的邀请链接！"
+        # 判断是否有配置过个性化回复消息
+        info_set = await dataLog.select_link_inform(gid)
+        if info_set:
+            card_text = info_set['inform'].replace(r'{met}',f'(met){msg.author_id}(met)')
+            await msg.reply(card_text,type=MessageTypes.CARD)
+        else:
+            cm = CardMessage(Card(Module.Section(Element.Text(card_text,Types.Text.KMD))))
+            await msg.reply(cm) # 发送提示
+        # 删除邀请链接消息
+        await msg.delete() 
+        _log.info(f"G:{gid} C:{msg.ctx.channel.id} Au:{msg.author_id} | inform & msg.delete")
         
     except requester.HTTPRequester.APIRequestFailed as result:
         _log.exception(f"APIRequestFailed in link_guard")
