@@ -34,7 +34,8 @@ kook_base_headers = {f"Authorization": f"Bot {config.BOT_TOKEN}"}
 """kook 请求头"""
 BOT_START_TIME = get_time()
 """机器人启动时间"""
-
+INVITE_LINK_DOMAIN = ["https://kook.top/","https://kook.vip/"]
+"""kook 邀请链接的域名"""
 
 #####################################################################################
 
@@ -320,19 +321,27 @@ async def link_guard(msg: Message):
         log_ch_id = conf_ret["log_ch"]  # 日志频道
         # 3.判断消息里面有没有邀请链接
         text = msg.content  # 消息内容
-        link_index = text.find("https://kook.top/")  # 返回子串开头的下标
-        link_end_index = text.find("](")  # 链接会以markdown的方式传入[url](url)
-        if link_index == -1:  # 没有这个子串，代表没有邀请链接，直接退出
+        link_index = -1
+        # 注意kook现在更新了域名，所以干脆使用域名列表来解析
+        for domain in INVITE_LINK_DOMAIN:
+            link_index = text.find(domain)  # 返回子串开头的下标
+            link_end_index = text.find("](")  # 链接会以markdown的方式传入[url](url)
+        # 没有这个子串，代表没有邀请链接，直接退出
+        if link_index == -1:
             return
         # 4.取出邀请链接的code
-        code = text[link_index + 17 : link_index + 23]  # 这里默认他是6位邀请链接，但出现过少于6个的情况
+        code = text[link_index + 17:link_index + 23]  # 这里默认他是6位邀请链接，但出现过少于6个的情况
         if link_end_index == -1:  # 找不到代表传入的link格式不是md，尝试取6位并删除可能的超宽字符
             code = code.replace("]", "")  # 少于6个会多出来一个]
         else:  # 传入的格式是kmd，直接从下标处取
-            code = text[link_index + 17 : link_end_index]
+            code = text[link_index + 17:link_end_index]
+        # 5.检查code合法性，一般都是六位，目前暂时认为低于4位的不合法
+        if len(code) <= 4 or len(code) > 8:
+            return # 不合法的code
 
-        ret = await invite_ck(msg, code, conf_ret)  # 检查是否为当前服务器
-        if not ret:  # 是本服务器的邀请链接，推出
+        # 6.检查是否为当前服务器
+        ret = await invite_ck(msg, code, conf_ret)
+        if not ret:  # 是本服务器的邀请链接，退出，不做处理
             return
         # 不是本服务器的邀请链接
         card_text = f"(met){msg.author_id}(met)\n请勿发送其他服务器的邀请链接！"
@@ -340,20 +349,18 @@ async def link_guard(msg: Message):
         info_set = await dataLog.select_link_inform(gid)
         if info_set:
             card_text = info_set["inform"].replace(
-                r"{met}", f"(met){msg.author_id}(met)"
-            )
+                r"{met}", f"(met){msg.author_id}(met)")
             await msg.reply(card_text, type=MessageTypes.CARD)
         else:
             cm = CardMessage(
-                Card(Module.Section(Element.Text(card_text, Types.Text.KMD)))
-            )
+                Card(Module.Section(Element.Text(card_text, Types.Text.KMD))))
             await msg.reply(cm)  # 发送提示
         # 删除邀请链接消息
+        await asyncio.sleep(0.1) # 等待网络
         await msg.delete()
         _log.info(
-            f"G:{gid} C:{msg.ctx.channel.id} Au:{msg.author_id} | inform & msg.delete"
+            f"G:{gid} C:{msg.ctx.channel.id} Au:{msg.author_id} | code:{code} | inform & msg.delete"
         )
-
     except requester.HTTPRequester.APIRequestFailed as result:
         _log.exception(f"APIRequestFailed in link_guard")
         if "无删除权限" in str(result):
@@ -412,21 +419,22 @@ async def kill_bot_cmd(msg: Message, at_text="", *arg):
             return
         # 必须要at机器人，或者私聊机器人
         cur_bot = await bot.client.fetch_me()
-        if isinstance(msg, PrivateMessage) or f"(met){cur_bot.id}(met)" in at_text:
+        if isinstance(msg,
+                      PrivateMessage) or f"(met){cur_bot.id}(met)" in at_text:
             # 发送信息
             cm = await get_card_msg(
-                f"[KILL] 保存全局变量成功，linkguard bot下线\n当前时间：{get_time()}"
-            )
+                f"[KILL] 保存全局变量成功，linkguard bot下线\n当前时间：{get_time()}")
             await msg.reply(cm)
             # 打印日志
-            _log.info(f"KILL | bot-off\n")
+            _log.critical("[KILL] KILL CMD RECV | BOT OFF\n")
             os._exit(0)  # 退出程序
         else:
-            _log.info(f"[kill] invalid kill | {msg.content}")
-    except:
-        _log.exception(f"Err in kil | Au:{msg.author_id}")
-        cm = await get_card_msg(f"ERR! [{get_time()}] kill", err_card=True)
+            _log.info(f"[KILL] invalid kill | {msg.content}")
+    except Exception as result:
+        _log.exception(f"[KILL] Err in kill | Au:{msg.author_id}")
+        cm = await get_card_msg(f"ERR! [{get_time()}] KILL, BOT ABORT!", err_card=True)
         await msg.reply(cm)
+        os.abort() # 出现异常也需要退出机器人
 
 
 # 开机 （如果是主文件就开机）
