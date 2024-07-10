@@ -7,3 +7,4 @@ config.py
 # 日志文件和缓存
 __pycache__/
 *.log
+*.log.*
